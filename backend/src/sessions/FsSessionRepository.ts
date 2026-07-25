@@ -12,19 +12,19 @@ export class FsSessionRepository implements SessionRepository {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   }
 
-  getByDogIdInRange(dogId: string, from: Date, to: Date): Session[] {
+  getByDogId(dogId: string): Session[] {
     if (!fs.existsSync(this.dataDir)) return [];
-    const results: Session[] = [];
-    const files = fs.readdirSync(this.dataDir).filter(f => f.endsWith('.json'));
-    for (const f of files) {
-      const session: Session = JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8'));
-      if (session.dogId !== dogId) continue;
+    return fs.readdirSync(this.dataDir)
+      .filter(f => f.endsWith('.json'))
+      .map(f => JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8')) as Session)
+      .filter(session => session.dogId === dogId);
+  }
+
+  getByDogIdInRange(dogId: string, from: Date, to: Date): Session[] {
+    return this.getByDogId(dogId).filter(session => {
       const sessionDate = new Date(`${session.date}T00:00:00`);
-      if (sessionDate >= from && sessionDate <= to) {
-        results.push(session);
-      }
-    }
-    return results;
+      return sessionDate >= from && sessionDate <= to;
+    });
   }
 
   save(session: Session): void {

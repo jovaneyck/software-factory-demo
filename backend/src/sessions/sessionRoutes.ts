@@ -3,17 +3,45 @@ import crypto from 'crypto';
 import type { DogRepository } from '../dogs/DogRepository.js';
 import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
+import type { SessionExportService } from './SessionExportService.js';
 import type { Session } from '../shared/types.js';
 import { validateUuid } from '../shared/validateUuid.js';
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const isIsoDate = (value: unknown): value is string =>
+  typeof value === 'string'
+  && ISO_DATE_RE.test(value)
+  && !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
 
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  exportService: SessionExportService,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
   router.param('dogId', validateUuid);
+
+  // Declared before `/dogs/:dogId/sessions/:id` so `export` is not matched as an id.
+  router.get('/dogs/:dogId/sessions/export', (req, res) => {
+    const { dogId } = req.params;
+    const { from, to } = req.query;
+
+    if ((from !== undefined && !isIsoDate(from)) || (to !== undefined && !isIsoDate(to))) {
+      return res.status(400).json({ error: 'from and to must be YYYY-MM-DD dates' });
+    }
+
+    const result = exportService.export(dogId, from as string | undefined, to as string | undefined);
+    if ('error' in result) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.csv);
+  });
 
   router.get('/dogs/:dogId/sessions', (req, res) => {
     const { dogId } = req.params;

@@ -362,6 +362,67 @@ describe('ProgressReport', () => {
     expect(weekButton.className).toContain('bg-blue-600')
   })
 
+  describe('CSV export', () => {
+    async function selectBuddy(sessionData = sessions) {
+      const user = userEvent.setup()
+      mockFetchAll(sessionData)
+      renderAt('/progress')
+
+      await waitFor(() => {
+        expect(screen.getByText('Buddy')).toBeInTheDocument()
+      })
+      await user.click(screen.getByText('Buddy'))
+      return user
+    }
+
+    it('offers an export link pointing at the export endpoint once a dog is selected', async () => {
+      await selectBuddy()
+
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: /export csv/i })).toBeInTheDocument()
+      })
+
+      const link = screen.getByRole('link', { name: /export csv/i })
+      expect(link).toHaveAttribute('href', '/api/dogs/dog-1/sessions/export')
+      expect(link).toHaveAttribute('download')
+    })
+
+    it('does not offer an export before a dog is selected', async () => {
+      mockFetchAll()
+      renderAt('/progress')
+
+      await waitFor(() => {
+        expect(screen.getByText('Buddy')).toBeInTheDocument()
+      })
+
+      expect(screen.queryByRole('link', { name: /export csv/i })).not.toBeInTheDocument()
+    })
+
+    it('passes the active time range through as a from bound', async () => {
+      const user = await selectBuddy(sessionsForFilter)
+
+      await waitFor(() => {
+        expect(screen.getByText('Sit')).toBeInTheDocument()
+      })
+      await user.click(screen.getByText('Sit'))
+      await user.click(screen.getByRole('button', { name: 'Week' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: /export csv/i }))
+          .toHaveAttribute('href', '/api/dogs/dog-1/sessions/export?from=2026-02-08')
+      })
+    })
+
+    it('is disabled when the dog has no completed or skipped sessions', async () => {
+      await selectBuddy([{ dogId: 'dog-1', trainingId: 'tr-3', date: '2026-01-12', status: 'planned' }])
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /export csv/i })).toBeDisabled()
+      })
+      expect(screen.queryByRole('link', { name: /export csv/i })).not.toBeInTheDocument()
+    })
+  })
+
   it('clicking "All" after another filter shows all sessions again', async () => {
     const user = userEvent.setup()
     mockFetchAll(sessionsForFilter)

@@ -89,6 +89,11 @@ function ProgressReport() {
 
   const selectedTraining = trainings.find(t => t.id === selectedTrainingId)
 
+  const exportCutoff = getCutoffDate(timeRange)
+  const exportHref = `/api/dogs/${selectedDogId}/sessions/export${exportCutoff ? `?from=${exportCutoff}` : ''}`
+  const canExport = relevantSessions.length > 0
+  const exportClassName = 'inline-block rounded-full px-3 py-1 text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200'
+
   function selectDog(dogId: string) {
     setSearchParams({ dog: dogId })
   }
@@ -129,6 +134,23 @@ function ProgressReport() {
           >
             Change dog
           </button>
+
+          <div className="mt-3">
+            {canExport ? (
+              <a href={exportHref} download className={exportClassName}>
+                ⬇️ Export CSV
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="No completed or skipped sessions to export"
+                className={`${exportClassName} cursor-not-allowed opacity-50`}
+              >
+                ⬇️ Export CSV
+              </button>
+            )}
+          </div>
 
           {selectedTraining ? (
             <div className="mt-4">

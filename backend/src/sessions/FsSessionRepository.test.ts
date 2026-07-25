@@ -89,6 +89,29 @@ describe('FsSessionRepository', () => {
     });
   });
 
+  describe('getByDogId', () => {
+    it('returns every session for the dog regardless of date', () => {
+      const dogId = crypto.randomUUID();
+      const otherDogId = crypto.randomUUID();
+
+      const oldest = makeSession({ dogId, date: '1999-01-01' });
+      const newest = makeSession({ dogId, date: '2099-12-31' });
+      repo.save(oldest);
+      repo.save(newest);
+      repo.save(makeSession({ dogId: otherDogId, date: '2026-02-10' }));
+
+      const results = repo.getByDogId(dogId);
+
+      expect(results).toHaveLength(2);
+      expect(results.map(s => s.id).sort()).toEqual([oldest.id, newest.id].sort());
+    });
+
+    it('returns empty array when data directory does not exist', () => {
+      const emptyRepo = new FsSessionRepository(path.join(dataDir, 'nonexistent'));
+      expect(emptyRepo.getByDogId(crypto.randomUUID())).toEqual([]);
+    });
+  });
+
   describe('delete', () => {
     it('returns true when deleting an existing session', () => {
       const session = makeSession();

@@ -6,13 +6,16 @@ import { sessionRoutes } from './sessionRoutes.js';
 import { FakeDogRepository } from '../dogs/FakeDogRepository.js';
 import { FakeSessionRepository } from './FakeSessionRepository.js';
 import { FakePlanRepository } from '../plans/FakePlanRepository.js';
+import { FakeTrainingRepository } from '../trainings/FakeTrainingRepository.js';
 import { SessionListingService } from './SessionListingService.js';
+import { SessionExportService } from './SessionExportService.js';
 
 describe('Sessions API', () => {
   let app: Express;
   let dogs: FakeDogRepository;
   let sessions: FakeSessionRepository;
   let plans: FakePlanRepository;
+  let trainings: FakeTrainingRepository;
   const dogId = crypto.randomUUID();
   const trainingId = crypto.randomUUID();
 
@@ -20,10 +23,12 @@ describe('Sessions API', () => {
     dogs = new FakeDogRepository();
     sessions = new FakeSessionRepository();
     plans = new FakePlanRepository();
+    trainings = new FakeTrainingRepository();
     const service = new SessionListingService(dogs, plans, sessions);
+    const exportService = new SessionExportService(dogs, trainings, sessions);
     app = express();
     app.use(express.json());
-    app.use('/api', sessionRoutes(dogs, sessions, service));
+    app.use('/api', sessionRoutes(dogs, sessions, service, exportService));
 
     dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg' });
   });
@@ -155,6 +160,132 @@ describe('Sessions API', () => {
     it('returns 400 when session id is not a valid UUID', async () => {
       const res = await request(app).get(`/api/dogs/${dogId}/sessions/not-a-uuid`);
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /api/dogs/:dogId/sessions/export', () => {
+    const BOM = '﻿';
+    const HEADER = 'date,dog,training,status,score,notes';
+    const bodyLines = (text: string) => text.slice(BOM.length).split('\r\n');
+
+    beforeEach(() => {
+      trainings.save({ id: trainingId, name: 'Sit', procedure: '', tips: '' });
+    });
+
+    it('exports completed and skipped sessions as CSV, date ascending', async () => {
+      const heelId = crypto.randomUUID();
+      trainings.save({ id: heelId, name: 'Heel', procedure: '', tips: '' });
+      sessions.save({ id: crypto.randomUUID(), dogId, trainingId: heelId, date: '2026-02-15', status: 'skipped' });
+      sessions.save({ id: crypto.randomUUID(), dogId, trainingId, date: '2026-02-14', status: 'completed', score: 8, notes: 'Good boy' });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(res.status).toBe(200);
+      expect(bodyLines(res.text)).toEqual([
+        HEADER,
+        '2026-02-14,Buddy,Sit,completed,8,Good boy',
+        '2026-02-15,Buddy,Heel,skipped,,'
+      ]);
+    });
+
+    it('responds with CSV content type and an attachment filename', async () => {
+      sessions.save({ id: crypto.randomUUID(), dogId, trainingId, date: '2026-02-14', status: 'completed' });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(res.headers['content-type']).toBe('text/csv; charset=utf-8');
+      expect(res.headers['content-disposition'])
+        .toBe('attachment; filename="buddy-session-history-2026-02-14-2026-02-14.csv"');
+    });
+
+    it('names the file after the requested range', async () => {
+      const res = await request(app)
+        .get(`/api/dogs/${dogId}/sessions/export`)
+        .query({ from: '2026-01-01', to: '2026-12-31' });
+
+      expect(res.headers['content-disposition'])
+        .toBe('attachment; filename="buddy-session-history-2026-01-01-2026-12-31.csv"');
+    });
+
+    it('returns 200 with a header row only when the dog has no sessions', async () => {
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(res.status).toBe(200);
+      expect(bodyLines(res.text)).toEqual([HEADER]);
+    });
+
+    it('returns 200 with a header row only when only planned sessions exist', async () => {
+      const planId = crypto.randomUUID();
+      plans.save({ id: planId, name: 'Weekly', schedule: { monday: [trainingId] } });
+      dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg', planId });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(bodyLines(res.text)).toEqual([HEADER]);
+    });
+
+    it('returns 200 with a header row only when the range matches nothing', async () => {
+      sessions.save({ id: crypto.randomUUID(), dogId, trainingId, date: '2026-02-14', status: 'completed' });
+
+      const res = await request(app)
+        .get(`/api/dogs/${dogId}/sessions/export`)
+        .query({ from: '2027-01-01', to: '2027-12-31' });
+
+      expect(bodyLines(res.text)).toEqual([HEADER]);
+    });
+
+    it('returns 200 with a header row only when from is after to', async () => {
+      sessions.save({ id: crypto.randomUUID(), dogId, trainingId, date: '2026-02-14', status: 'completed' });
+
+      const res = await request(app)
+        .get(`/api/dogs/${dogId}/sessions/export`)
+        .query({ from: '2026-12-31', to: '2026-01-01' });
+
+      expect(res.status).toBe(200);
+      expect(bodyLines(res.text)).toEqual([HEADER]);
+    });
+
+    it('serves UTF-8 content for non-ascii names and notes', async () => {
+      dogs.save({ id: dogId, name: 'Rüdiger', picture: 'r.jpg' });
+      sessions.save({ id: crypto.randomUUID(), dogId, trainingId, date: '2026-02-14', status: 'completed', notes: 'Café 🐕' });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(res.text).toContain('Rüdiger');
+      expect(res.text).toContain('Café 🐕');
+      expect(res.headers['content-disposition'])
+        .toBe('attachment; filename="r-diger-session-history-2026-02-14-2026-02-14.csv"');
+    });
+
+    it('returns 404 for an unknown dog', async () => {
+      const res = await request(app).get(`/api/dogs/${crypto.randomUUID()}/sessions/export`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('Dog not found');
+    });
+
+    it('returns 400 for a malformed dogId', async () => {
+      const res = await request(app).get('/api/dogs/not-a-uuid/sessions/export');
+      expect(res.status).toBe(400);
+    });
+
+    it.each(['not-a-date', '2026-13-45', '14/02/2026'])('returns 400 for malformed from=%s', async (from) => {
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`).query({ from });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('from and to must be YYYY-MM-DD dates');
+    });
+
+    it('returns 400 for a malformed to', async () => {
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`).query({ to: 'nope' });
+      expect(res.status).toBe(400);
+    });
+
+    it('does not let the :id route swallow the export path', async () => {
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('text/csv; charset=utf-8');
     });
   });
 
