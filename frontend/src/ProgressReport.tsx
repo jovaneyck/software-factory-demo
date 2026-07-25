@@ -43,6 +43,12 @@ interface Session {
   notes?: string
 }
 
+interface DogData {
+  dogId: string
+  sessions: Session[]
+  trainings: Training[]
+}
+
 function ProgressReport() {
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedDogId = searchParams.get('dog')
@@ -51,8 +57,7 @@ function ProgressReport() {
   const [dogs, setDogs] = useState<Dog[]>([])
   const [error, setError] = useState(false)
   const [timeRange, setTimeRange] = useState<TimeRange>('all')
-  const [trainings, setTrainings] = useState<Training[]>([])
-  const [sessions, setSessions] = useState<Session[]>([])
+  const [dogData, setDogData] = useState<DogData | null>(null)
 
   useEffect(() => {
     fetch('/api/dogs')
@@ -65,21 +70,24 @@ function ProgressReport() {
   }, [])
 
   useEffect(() => {
-    if (!selectedDogId) {
-      setTrainings([])
-      setSessions([])
-      setTimeRange('all')
-      return
-    }
+    if (!selectedDogId) return
 
+    let cancelled = false
     Promise.all([
       fetch(`/api/dogs/${selectedDogId}/sessions?from=2000-01-01&to=2099-12-31`).then(r => r.json()),
       fetch('/api/trainings').then(r => r.json())
     ]).then(([fetchedSessions, fetchedTrainings]) => {
-      setSessions(fetchedSessions)
-      setTrainings(fetchedTrainings)
+      if (!cancelled) {
+        setDogData({ dogId: selectedDogId, sessions: fetchedSessions, trainings: fetchedTrainings })
+      }
     })
+    return () => { cancelled = true }
   }, [selectedDogId])
+
+  // Ignore data still belonging to a previously selected dog
+  const loadedData = dogData?.dogId === selectedDogId ? dogData : null
+  const sessions = loadedData?.sessions ?? []
+  const trainings = loadedData?.trainings ?? []
 
   const selectedDog = dogs.find(d => d.id === selectedDogId)
 
@@ -95,6 +103,7 @@ function ProgressReport() {
 
   function deselectDog() {
     setSearchParams({})
+    setTimeRange('all')
   }
 
   function selectTraining(trainingId: string) {

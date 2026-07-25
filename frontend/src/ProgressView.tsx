@@ -74,20 +74,27 @@ function ProgressView({ dogId, trainings }: ProgressViewProps) {
 
   const weekDays = getWeekDays(weekStart)
 
-  const fetchSessions = useCallback(async (monday: Date) => {
+  const loadWeek = useCallback(async (monday: Date): Promise<Session[] | null> => {
     const from = formatDate(monday)
     const sunday = new Date(monday)
     sunday.setDate(monday.getDate() + 6)
     const to = formatDate(sunday)
     const res = await fetch(`/api/dogs/${dogId}/sessions?from=${from}&to=${to}`)
-    if (res.ok) {
-      setSessions(await res.json())
-    }
+    return res.ok ? await res.json() : null
   }, [dogId])
 
+  const fetchSessions = useCallback(async (monday: Date) => {
+    const week = await loadWeek(monday)
+    if (week) setSessions(week)
+  }, [loadWeek])
+
   useEffect(() => {
-    fetchSessions(weekStart)
-  }, [weekStart, fetchSessions])
+    let cancelled = false
+    loadWeek(weekStart).then(week => {
+      if (!cancelled && week) setSessions(week)
+    })
+    return () => { cancelled = true }
+  }, [weekStart, loadWeek])
 
   const handleRemove = async (sessionId: string) => {
     const res = await fetch(`/api/dogs/${dogId}/sessions/${sessionId}`, { method: 'DELETE' })

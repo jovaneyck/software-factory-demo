@@ -13,6 +13,8 @@ interface ProgressGraphProps {
   sessions: Session[]
 }
 
+const formatTickDate = d3.timeFormat('%b %d')
+
 function ProgressGraph({ sessions }: ProgressGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -55,7 +57,7 @@ function ProgressGraph({ sessions }: ProgressGraphProps) {
     // X axis
     svg.append('g')
       .attr('transform', `translate(0,${height - margin.bottom})`)
-      .call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat('%b %d') as any))
+      .call(d3.axisBottom(x).ticks(5).tickFormat(d => formatTickDate(d as Date)))
 
     // Y axis
     svg.append('g')
