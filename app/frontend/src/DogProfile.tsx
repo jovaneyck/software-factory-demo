@@ -6,6 +6,7 @@ interface Dog {
   id: string;
   name: string;
   picture: string;
+  breed?: string;
   planId?: string;
 }
 
@@ -115,7 +116,12 @@ function DogProfile() {
         <span>←</span> <span>Back</span>
       </Link>
 
-      <h2 className="text-2xl font-bold text-slate-800">{dog.name}</h2>
+      <h2 className="text-2xl font-bold text-slate-800">
+        {dog.name}
+        {dog.breed && (
+          <span className="ml-2 text-lg font-normal text-slate-500">{dog.breed}</span>
+        )}
+      </h2>
 
       <img
         src={`/uploads/dogs/${dog.picture}`}

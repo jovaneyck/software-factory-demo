@@ -13,7 +13,7 @@ export function dogRoutes(repo: DogRepository, upload: multer.Multer): Router {
   });
 
   router.post('/dogs', upload.single('picture'), (req, res) => {
-    const { name } = req.body;
+    const { name, breed } = req.body;
     const file = req.file;
 
     if (!name || !file) {
@@ -21,7 +21,8 @@ export function dogRoutes(repo: DogRepository, upload: multer.Multer): Router {
     }
 
     const id = crypto.randomUUID();
-    const dog = { id, name, picture: file.filename };
+    const dog: { id: string; name: string; picture: string; breed?: string } = { id, name, picture: file.filename };
+    if (breed) dog.breed = breed;
     repo.save(dog);
     res.status(201).json(dog);
   });

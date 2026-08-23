@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { BREEDS } from './breeds';
 
 function DogForm() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
+  const [breed, setBreed] = useState('');
   const [picture, setPicture] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -14,6 +16,7 @@ function DogForm() {
     setSubmitting(true);
     const formData = new FormData();
     formData.append('name', name);
+    if (breed) formData.append('breed', breed);
     formData.append('picture', picture);
 
     try {
@@ -52,6 +55,24 @@ function DogForm() {
               required
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+          <div>
+            <label htmlFor="breed" className="block text-sm font-medium text-slate-700 mb-1">
+              Breed
+            </label>
+            <select
+              id="breed"
+              value={breed}
+              onChange={(e) => setBreed(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select a breed</option>
+              {BREEDS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label htmlFor="picture" className="block text-sm font-medium text-slate-700 mb-1">
