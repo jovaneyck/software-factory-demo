@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/src/assets/logo.png" alt="DogTrainr" width="200" height="200" style="border-radius: 50%; object-fit: cover;" />
+  <img src="app/frontend/src/assets/logo.png" alt="DogTrainr" width="200" height="200" style="border-radius: 50%; object-fit: cover;" />
 </p>
 
 <h1 align="center">DogTrainr</h1>
@@ -20,19 +20,19 @@ DogTrainr helps dog owners and trainers manage their dogs, define training exerc
 
 ### Core concepts
 
-| Concept      | Description                                                                 |
-|--------------|-----------------------------------------------------------------------------|
-| **Dogs**     | Your dogs, each with a name, photo, and an optional assigned training plan. |
-| **Trainings**| Individual exercises with a procedure and tips, written in Markdown.        |
-| **Plans**    | Weekly schedules that map each weekday to a set of trainings.              |
+| Concept       | Description                                                                 |
+| ------------- | --------------------------------------------------------------------------- |
+| **Dogs**      | Your dogs, each with a name, photo, and an optional assigned training plan. |
+| **Trainings** | Individual exercises with a procedure and tips, written in Markdown.        |
+| **Plans**     | Weekly schedules that map each weekday to a set of trainings.               |
 
 ## Tech stack
 
-| Layer    | Tech                                      |
-|----------|-------------------------------------------|
-| Frontend | React 19, React Router 7, Vite            |
-| Backend  | Express, file-based JSON persistence       |
-| Tests    | Vitest, Testing Library, Supertest         |
+| Layer    | Tech                                 |
+| -------- | ------------------------------------ |
+| Frontend | React 19, React Router 7, Vite       |
+| Backend  | Express, file-based JSON persistence |
+| Tests    | Vitest, Testing Library, Supertest   |
 
 ## Getting started
 
