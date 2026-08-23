@@ -268,9 +268,15 @@ After the worker pushes fixes, read its output and verify `FACTORY:FIXES_PUSHED`
 
 If the reviewer had no issues, skip straight to Step 7.
 
-### Step 7 — Report
+### Step 7 — Cost report and status update
 
-Mark the issue as ready for human review:
+Post token costs from all agents as a PR comment:
+
+```bash
+bash .agents/skills/foreman/factory-cost-report.sh <pr-number> <worker-pane-id> <reviewer-pane-id> <owner/repo>
+```
+
+Then mark the issue as ready for human review:
 
 ```bash
 bd update <id> --status=in_review
