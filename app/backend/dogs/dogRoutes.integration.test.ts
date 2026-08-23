@@ -52,6 +52,30 @@ describe('Dog routes (HTTP adapter)', () => {
       expect(response.body.picture).toMatch(/\.jpg$/);
     });
 
+    it('creates a dog with breed when provided', async () => {
+      const response = await request(app)
+        .post('/api/dogs')
+        .field('name', 'Rex')
+        .field('breed', 'Golden Retriever')
+        .attach('picture', Buffer.from('fake-image'), 'rex.jpg');
+
+      expect(response.status).toBe(201);
+      expect(response.body.breed).toBe('Golden Retriever');
+
+      const saved = repo.getById(response.body.id);
+      expect(saved?.breed).toBe('Golden Retriever');
+    });
+
+    it('omits breed from response when not provided', async () => {
+      const response = await request(app)
+        .post('/api/dogs')
+        .field('name', 'Buddy')
+        .attach('picture', Buffer.from('fake-image'), 'buddy.jpg');
+
+      expect(response.status).toBe(201);
+      expect(response.body.breed).toBeUndefined();
+    });
+
     it('returns 400 when name is missing', async () => {
       const response = await request(app)
         .post('/api/dogs')

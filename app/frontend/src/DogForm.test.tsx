@@ -60,4 +60,35 @@ describe('DogForm', () => {
     expect(formData.get('name')).toBe('Buddy');
     expect(formData.get('picture')).toBeInstanceOf(File);
   });
+
+  it('submits the form with breed when selected', async () => {
+    const user = userEvent.setup();
+
+    const mockFetch = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ id: '123', name: 'Rex', picture: 'rex.jpg', breed: 'Beagle' }),
+    } as Response);
+
+    render(
+      <MemoryRouter>
+        <DogForm />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText(/name/i), 'Rex');
+    await user.selectOptions(screen.getByLabelText(/breed/i), 'Beagle');
+
+    const file = new File(['test'], 'rex.jpg', { type: 'image/jpeg' });
+    await user.upload(screen.getByLabelText(/picture/i), file);
+
+    await user.click(screen.getByRole('button', { name: /register/i }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    const formData = mockFetch.mock.calls[0][1]?.body as FormData;
+    expect(formData.get('breed')).toBe('Beagle');
+  });
 });

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import type { DogRepository } from './DogRepository.js';
+import type { Dog } from '../shared/types.js';
 import type multer from 'multer';
 import { validateUuid } from '../shared/validateUuid.js';
 
@@ -21,7 +22,7 @@ export function dogRoutes(repo: DogRepository, upload: multer.Multer): Router {
     }
 
     const id = crypto.randomUUID();
-    const dog: { id: string; name: string; picture: string; breed?: string } = { id, name, picture: file.filename };
+    const dog: Dog = { id, name, picture: file.filename };
     if (breed) dog.breed = breed;
     repo.save(dog);
     res.status(201).json(dog);

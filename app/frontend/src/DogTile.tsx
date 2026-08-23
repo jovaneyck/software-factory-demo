@@ -4,6 +4,7 @@ interface Dog {
   id: string;
   name: string;
   picture: string;
+  breed?: string;
 }
 
 type DogTileProps = { dog: Dog } & (
