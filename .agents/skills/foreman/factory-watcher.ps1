@@ -31,7 +31,7 @@ Write-Host "[watcher] Started, polling every ${Interval}s, foreman=${Foreman}, r
 function Get-KnownGitHubNumbers {
     $nums = @{}
     try {
-        $issues = bd list --status=open --json 2>$null | ConvertFrom-Json -Depth 10
+        $issues = bd list --json 2>$null | ConvertFrom-Json -Depth 10
         foreach ($i in @($issues)) {
             if ($i.external_ref -match '/issues/(\d+)$') {
                 $nums[$Matches[1]] = $true
