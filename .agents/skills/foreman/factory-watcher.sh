@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # factory-watcher.sh — polls GitHub for new issues and pokes the foreman agent
 #
-# Usage:
+# Setup (from the foreman's pane or any shell):
 #   herdr pane split --current --direction down --cwd "$PWD" --no-focus
-#   herdr pane run <pane-id> "bash .agents/skills/foreman/factory-watcher.sh [OPTIONS]"
+#   herdr pane run <pane-id> "bash .agents/skills/foreman/factory-watcher.sh"
 #
 # Options:
 #   --interval <seconds>   Polling interval (default: 60)
@@ -29,35 +29,43 @@ export GITHUB_TOKEN="${GITHUB_TOKEN:-$(gh auth token)}"
 
 echo "[watcher] Started — polling every ${INTERVAL}s, foreman=${FOREMAN}"
 
+LAST_READY_COUNT=$(bd ready --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
+echo "[watcher] Baseline: $LAST_READY_COUNT ready issues"
+
 while true; do
-  SYNC_OUTPUT=$(bd github sync --json 2>&1 || true)
-  PULLED=$(echo "$SYNC_OUTPUT" | jq -r '.pulled // 0' 2>/dev/null || echo "0")
+  sleep "$INTERVAL"
 
-  if [[ "$PULLED" -gt 0 ]]; then
-    READY_COUNT=$(bd ready --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
+  # Sync with GitHub (ignore warnings on stderr)
+  bd github sync >/dev/null 2>&1 || true
 
-    echo "[watcher] $(date +%H:%M:%S) — pulled $PULLED new issues, $READY_COUNT ready"
+  # Count ready issues after sync
+  READY_COUNT=$(bd ready --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
 
-    herdr notification show "Factory: new work" \
-      --body "$PULLED issues synced, $READY_COUNT ready" \
+  if [[ "$READY_COUNT" -gt "$LAST_READY_COUNT" ]]; then
+    NEW_WORK=$(( READY_COUNT - LAST_READY_COUNT ))
+    echo "[watcher] $(date +%H:%M:%S) — $NEW_WORK new ready issue(s), $READY_COUNT total ready"
+
+    herdr notification show "Factory: $NEW_WORK new issue(s)" \
+      --body "$READY_COUNT issues ready for work" \
       --sound request 2>/dev/null || true
 
-    # Only poke the foreman if there's ready work and the agent exists and is idle
-    if [[ "$READY_COUNT" -gt 0 ]]; then
-      FOREMAN_STATE=$(herdr agent get "$FOREMAN" 2>/dev/null | jq -r '.result.agent_status' 2>/dev/null || echo "missing")
+    # Only poke the foreman if it exists and is idle
+    FOREMAN_STATE=$(herdr agent get "$FOREMAN" 2>/dev/null \
+      | jq -r '.result.agent_status' 2>/dev/null || echo "missing")
 
-      if [[ "$FOREMAN_STATE" == "idle" || "$FOREMAN_STATE" == "done" ]]; then
-        echo "[watcher] Poking foreman..."
-        herdr agent prompt "$FOREMAN" \
-          "New work arrived. $READY_COUNT issues ready. Run the factory loop." \
-          --wait --timeout 600000 2>/dev/null || true
-      else
-        echo "[watcher] Foreman is ${FOREMAN_STATE}, skipping poke"
-      fi
+    if [[ "$FOREMAN_STATE" == "idle" || "$FOREMAN_STATE" == "done" ]]; then
+      echo "[watcher] Poking foreman..."
+      herdr agent prompt "$FOREMAN" \
+        "/factory" \
+        --wait --timeout 600000 2>/dev/null || true
+      echo "[watcher] Foreman finished processing"
+    else
+      echo "[watcher] Foreman is ${FOREMAN_STATE}, skipping poke"
     fi
   else
-    $QUIET || echo "[watcher] $(date +%H:%M:%S) — no new issues"
+    $QUIET || echo "[watcher] $(date +%H:%M:%S) — no new issues (${READY_COUNT} ready)"
   fi
 
-  sleep "$INTERVAL"
+  # Update baseline (account for issues closed by foreman too)
+  LAST_READY_COUNT=$(bd ready --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
 done
