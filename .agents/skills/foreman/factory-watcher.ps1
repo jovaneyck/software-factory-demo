@@ -18,8 +18,8 @@ if (-not $env:GITHUB_TOKEN) {
 }
 
 # Read github owner/repo from bd config
-$ghOwner = bd config get github.owner 2>$null
-$ghRepo = bd config get github.repo 2>$null
+$ghOwner = (bd config get github.owner 2>$null).Trim()
+$ghRepo = (bd config get github.repo 2>$null).Trim()
 if (-not $ghOwner -or -not $ghRepo) {
     Write-Error "github.owner/repo not configured in bd"
     exit 1
