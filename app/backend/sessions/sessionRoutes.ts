@@ -97,7 +97,7 @@ export function sessionRoutes(
       ...existing,
       status: updatedStatus,
       score: score ?? existing.score,
-      notes: notes ?? existing.notes
+      notes: notes ?? existing.notes,
     };
 
     sessions.save(updated);

@@ -37,13 +37,11 @@ describe('Training routes (HTTP adapter)', () => {
 
   describe('POST /api/trainings', () => {
     it('creates a training with name, procedure, and tips', async () => {
-      const response = await request(app)
-        .post('/api/trainings')
-        .send({
-          name: 'Sit',
-          procedure: '# Steps\n1. Hold treat above nose\n2. Say "sit"',
-          tips: '- Be patient\n- Use high-value treats'
-        });
+      const response = await request(app).post('/api/trainings').send({
+        name: 'Sit',
+        procedure: '# Steps\n1. Hold treat above nose\n2. Say "sit"',
+        tips: '- Be patient\n- Use high-value treats',
+      });
 
       expect(response.status).toBe(201);
       expect(response.body.id).toBeDefined();
@@ -82,7 +80,9 @@ describe('Training routes (HTTP adapter)', () => {
     });
 
     it('returns 404 for non-existent training', async () => {
-      const response = await request(app).get('/api/trainings/00000000-0000-0000-0000-000000000000');
+      const response = await request(app).get(
+        '/api/trainings/00000000-0000-0000-0000-000000000000',
+      );
       expect(response.status).toBe(404);
     });
 
@@ -126,7 +126,9 @@ describe('Training routes (HTTP adapter)', () => {
     });
 
     it('returns 404 when deleting non-existent training', async () => {
-      const response = await request(app).delete('/api/trainings/00000000-0000-0000-0000-000000000000');
+      const response = await request(app).delete(
+        '/api/trainings/00000000-0000-0000-0000-000000000000',
+      );
       expect(response.status).toBe(404);
     });
   });
@@ -157,8 +159,7 @@ describe('Training routes (HTTP adapter)', () => {
       const id = crypto.randomUUID();
       repo.save({ id, name: 'Roll', procedure: '# Roll', tips: '- Tip' });
 
-      const response = await request(app)
-        .post(`/api/trainings/${id}/images`);
+      const response = await request(app).post(`/api/trainings/${id}/images`);
 
       expect(response.status).toBe(400);
     });

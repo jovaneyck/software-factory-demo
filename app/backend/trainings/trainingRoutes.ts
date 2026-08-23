@@ -37,7 +37,7 @@ export function trainingRoutes(repo: TrainingRepository, upload: multer.Multer):
       ...existing,
       name: name ?? existing.name,
       procedure: procedure ?? existing.procedure,
-      tips: tips ?? existing.tips
+      tips: tips ?? existing.tips,
     };
     repo.save(updated);
     res.json(updated);
@@ -59,7 +59,7 @@ export function trainingRoutes(repo: TrainingRepository, upload: multer.Multer):
 
     res.status(201).json({
       filename: file.filename,
-      url: `/uploads/trainings/${file.filename}`
+      url: `/uploads/trainings/${file.filename}`,
     });
   });
 

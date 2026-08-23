@@ -9,7 +9,7 @@ export class FakeSessionRepository implements SessionRepository {
   }
 
   getByDogIdInRange(dogId: string, from: Date, to: Date): Session[] {
-    return [...this.data.values()].filter(s => {
+    return [...this.data.values()].filter((s) => {
       if (s.dogId !== dogId) return false;
       const d = new Date(`${s.date}T00:00:00`);
       return d >= from && d <= to;

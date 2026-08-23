@@ -4,13 +4,17 @@ import type { Dog } from '../shared/types.js';
 import type { DogRepository } from './DogRepository.js';
 
 export class FsDogRepository implements DogRepository {
-  constructor(private dataDir: string, private uploadsDir: string) {}
+  constructor(
+    private dataDir: string,
+    private uploadsDir: string,
+  ) {}
 
   getAll(): Dog[] {
     if (!fs.existsSync(this.dataDir)) return [];
-    return fs.readdirSync(this.dataDir)
-      .filter(f => f.endsWith('.json'))
-      .map(f => JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8')));
+    return fs
+      .readdirSync(this.dataDir)
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8')));
   }
 
   getById(id: string): Dog | null {

@@ -37,7 +37,7 @@ export class SessionListingService {
     private readonly dogs: DogRepository,
     private readonly plans: PlanRepository,
     private readonly sessions: SessionRepository,
-  ) { }
+  ) {}
 
   list(dogId: string, from: Date, to: Date): ListResult {
     const dog = this.dogs.getById(dogId);
@@ -45,28 +45,41 @@ export class SessionListingService {
 
     const persistedSessions = this.sessions.getByDogIdInRange(dogId, from, to);
     const persistedMap = new Map(
-      persistedSessions.map(s => [sessionKey(s.date, s.trainingId), s as unknown as SessionRecord])
+      persistedSessions.map((s) => [
+        sessionKey(s.date, s.trainingId),
+        s as unknown as SessionRecord,
+      ]),
     );
 
     const plan = dog.planId ? this.plans.getById(dog.planId) : null;
 
     const scheduledSessions = plan
-      ? dateRange(from, to).flatMap(date =>
-        scheduledTrainingIds(plan, date).map(tid =>
-          persistedMap.get(sessionKey(date, tid)) ?? { dogId, trainingId: tid, planId: dog.planId, date, status: 'planned' }
+      ? dateRange(from, to).flatMap((date) =>
+          scheduledTrainingIds(plan, date).map(
+            (tid) =>
+              persistedMap.get(sessionKey(date, tid)) ?? {
+                dogId,
+                trainingId: tid,
+                planId: dog.planId,
+                date,
+                status: 'planned',
+              },
+          ),
         )
-      )
       : [];
 
-    const scheduledKeys = new Set(scheduledSessions.map(s => sessionKey(s.date as string, s.trainingId as string)));
+    const scheduledKeys = new Set(
+      scheduledSessions.map((s) => sessionKey(s.date as string, s.trainingId as string)),
+    );
 
     const adHocSessions = persistedSessions
-      .filter(s => !scheduledKeys.has(sessionKey(s.date, s.trainingId)))
-      .map(s => s as unknown as SessionRecord);
+      .filter((s) => !scheduledKeys.has(sessionKey(s.date, s.trainingId)))
+      .map((s) => s as unknown as SessionRecord);
 
     return {
-      sessions: [...scheduledSessions, ...adHocSessions]
-        .sort((a, b) => (a.date as string).localeCompare(b.date as string))
+      sessions: [...scheduledSessions, ...adHocSessions].sort((a, b) =>
+        (a.date as string).localeCompare(b.date as string),
+      ),
     };
   }
 }

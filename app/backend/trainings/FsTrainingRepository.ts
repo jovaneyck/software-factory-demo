@@ -8,9 +8,10 @@ export class FsTrainingRepository implements TrainingRepository {
 
   getAll(): Training[] {
     if (!fs.existsSync(this.dataDir)) return [];
-    return fs.readdirSync(this.dataDir)
-      .filter(f => f.endsWith('.json'))
-      .map(f => JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8')));
+    return fs
+      .readdirSync(this.dataDir)
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8')));
   }
 
   getById(id: string): Training | null {
@@ -23,7 +24,10 @@ export class FsTrainingRepository implements TrainingRepository {
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
-    fs.writeFileSync(path.join(this.dataDir, `${training.id}.json`), JSON.stringify(training, null, 2));
+    fs.writeFileSync(
+      path.join(this.dataDir, `${training.id}.json`),
+      JSON.stringify(training, null, 2),
+    );
   }
 
   delete(id: string): boolean {

@@ -1,17 +1,17 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom';
 
 interface Dog {
-  id: string
-  name: string
-  picture: string
+  id: string;
+  name: string;
+  picture: string;
 }
 
 type DogTileProps = { dog: Dog } & (
-  | { to: string; onClick?: never }
-  | { onClick: () => void; to?: never }
-)
+  { to: string; onClick?: never } | { onClick: () => void; to?: never }
+);
 
-const tileClassName = "bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between hover:shadow-md transition-shadow"
+const tileClassName =
+  'bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between hover:shadow-md transition-shadow';
 
 function DogTileContent({ dog }: { dog: Dog }) {
   return (
@@ -28,7 +28,7 @@ function DogTileContent({ dog }: { dog: Dog }) {
       </div>
       <span className="text-slate-400 text-lg">›</span>
     </>
-  )
+  );
 }
 
 function DogTile(props: DogTileProps) {
@@ -37,14 +37,14 @@ function DogTile(props: DogTileProps) {
       <Link to={props.to} className={tileClassName}>
         <DogTileContent dog={props.dog} />
       </Link>
-    )
+    );
   }
 
   return (
-    <button onClick={props.onClick} className={tileClassName + " w-full"}>
+    <button onClick={props.onClick} className={tileClassName + ' w-full'}>
       <DogTileContent dog={props.dog} />
     </button>
-  )
+  );
 }
 
-export default DogTile
+export default DogTile;

@@ -1,36 +1,36 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import DogTile from './DogTile'
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import DogTile from './DogTile';
 
 interface Dog {
-  id: string
-  name: string
-  picture: string
+  id: string;
+  name: string;
+  picture: string;
 }
 
 function DogList() {
-  const [dogs, setDogs] = useState<Dog[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [dogs, setDogs] = useState<Dog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetch('/api/dogs')
-      .then(res => {
-        if (!res.ok) throw new Error('fetch failed')
-        return res.json()
+      .then((res) => {
+        if (!res.ok) throw new Error('fetch failed');
+        return res.json();
       })
-      .then(data => {
-        setDogs(data)
-        setLoading(false)
+      .then((data) => {
+        setDogs(data);
+        setLoading(false);
       })
       .catch(() => {
-        setError(true)
-        setLoading(false)
-      })
-  }, [])
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
   if (loading) {
-    return <p className="text-slate-500 text-center py-12">Loading...</p>
+    return <p className="text-slate-500 text-center py-12">Loading...</p>;
   }
 
   if (error) {
@@ -38,7 +38,7 @@ function DogList() {
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
         <p className="text-red-500 text-lg">Something went wrong. Please try again later.</p>
       </div>
-    )
+    );
   }
 
   if (dogs.length === 0) {
@@ -52,7 +52,7 @@ function DogList() {
           Register a dog
         </Link>
       </div>
-    )
+    );
   }
 
   return (
@@ -68,12 +68,12 @@ function DogList() {
         </Link>
       </div>
       <div className="space-y-3">
-        {dogs.map(dog => (
+        {dogs.map((dog) => (
           <DogTile key={dog.id} dog={dog} to={`/dogs/${dog.id}`} />
         ))}
       </div>
     </div>
-  )
+  );
 }
 
-export default DogList
+export default DogList;

@@ -20,8 +20,14 @@ export function planRoutes(repo: PlanRepository): Router {
       id,
       name,
       schedule: schedule || {
-        monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []
-      }
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: [],
+      },
     };
     repo.save(plan);
     res.status(201).json(plan);
@@ -41,7 +47,7 @@ export function planRoutes(repo: PlanRepository): Router {
     const updated = {
       ...existing,
       name: name ?? existing.name,
-      schedule: schedule ?? existing.schedule
+      schedule: schedule ?? existing.schedule,
     };
     repo.save(updated);
     res.json(updated);

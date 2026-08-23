@@ -7,7 +7,13 @@ import { FakePlanRepository } from './FakePlanRepository.js';
 import type { Express } from 'express';
 
 const fullSchedule = (overrides: Record<string, string[]> = {}) => ({
-  monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [],
+  monday: [],
+  tuesday: [],
+  wednesday: [],
+  thursday: [],
+  friday: [],
+  saturday: [],
+  sunday: [],
   ...overrides,
 });
 
@@ -41,7 +47,10 @@ describe('Plans API', () => {
 
   describe('POST /api/plans', () => {
     it('creates a plan with name and schedule', async () => {
-      const schedule = fullSchedule({ monday: ['training-1', 'training-2'], wednesday: ['training-3'] });
+      const schedule = fullSchedule({
+        monday: ['training-1', 'training-2'],
+        wednesday: ['training-3'],
+      });
 
       const response = await request(app)
         .post('/api/plans')
@@ -55,9 +64,7 @@ describe('Plans API', () => {
     });
 
     it('defaults schedule when none provided', async () => {
-      const response = await request(app)
-        .post('/api/plans')
-        .send({ name: 'Minimal plan' });
+      const response = await request(app).post('/api/plans').send({ name: 'Minimal plan' });
 
       expect(response.status).toBe(201);
       expect(response.body.schedule).toEqual(fullSchedule());
@@ -91,7 +98,11 @@ describe('Plans API', () => {
     });
 
     it('returns 400 for invalid UUID', async () => {
-      const invalidIds = ['not-a-uuid', '..%2F..%2Fetc%2Fpasswd', '00000000-0000-0000-0000-00000000000g'];
+      const invalidIds = [
+        'not-a-uuid',
+        '..%2F..%2Fetc%2Fpasswd',
+        '00000000-0000-0000-0000-00000000000g',
+      ];
       for (const id of invalidIds) {
         const response = await request(app).get(`/api/plans/${id}`);
         expect(response.status).toBe(400);

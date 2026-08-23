@@ -26,7 +26,11 @@ describe('Dog routes (HTTP adapter)', () => {
     });
 
     it('returns all dogs from repo', async () => {
-      repo.save({ id: '00000000-0000-0000-0000-000000000001', name: 'Buddy', picture: 'buddy.jpg' });
+      repo.save({
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'Buddy',
+        picture: 'buddy.jpg',
+      });
       repo.save({ id: '00000000-0000-0000-0000-000000000002', name: 'Max', picture: 'max.jpg' });
 
       const response = await request(app).get('/api/dogs');
@@ -57,9 +61,7 @@ describe('Dog routes (HTTP adapter)', () => {
     });
 
     it('returns 400 when picture is missing', async () => {
-      const response = await request(app)
-        .post('/api/dogs')
-        .field('name', 'Buddy');
+      const response = await request(app).post('/api/dogs').field('name', 'Buddy');
 
       expect(response.status).toBe(400);
     });
@@ -121,9 +123,7 @@ describe('Dog routes (HTTP adapter)', () => {
       const id = '00000000-0000-0000-0000-000000000001';
       repo.save({ id, name: 'Buddy', picture: 'buddy.jpg' });
 
-      const response = await request(app)
-        .put(`/api/dogs/${id}/plan`)
-        .send({ planId: 'plan-123' });
+      const response = await request(app).put(`/api/dogs/${id}/plan`).send({ planId: 'plan-123' });
 
       expect(response.status).toBe(200);
       expect(response.body.planId).toBe('plan-123');
@@ -156,7 +156,9 @@ describe('Dog routes (HTTP adapter)', () => {
     });
 
     it('returns 404 for non-existent dog', async () => {
-      const response = await request(app).delete('/api/dogs/00000000-0000-0000-0000-000000000000/plan');
+      const response = await request(app).delete(
+        '/api/dogs/00000000-0000-0000-0000-000000000000/plan',
+      );
       expect(response.status).toBe(404);
     });
 

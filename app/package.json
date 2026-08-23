@@ -8,6 +8,8 @@
     "test:backend": "npm test -w backend",
     "test:frontend": "npm test -w frontend",
     "test": "npm test -w backend && npm test -w frontend",
+    "format": "npm run format -w backend && npm run format -w frontend",
+    "format:check": "npm run format:check -w backend && npm run format:check -w frontend",
     "install:all": "npm install -w backend && npm install -w frontend"
   },
   "workspaces": [

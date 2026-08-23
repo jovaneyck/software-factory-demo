@@ -1,118 +1,128 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import ProgressGraph from './ProgressGraph'
-import DogTile from './DogTile'
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import ProgressGraph from './ProgressGraph';
+import DogTile from './DogTile';
 
-type TimeRange = 'all' | 'year' | 'month' | 'week'
+type TimeRange = 'all' | 'year' | 'month' | 'week';
 
 const TIME_RANGE_OPTIONS: { label: string; value: TimeRange }[] = [
   { label: 'All', value: 'all' },
   { label: 'Year', value: 'year' },
   { label: 'Month', value: 'month' },
   { label: 'Week', value: 'week' },
-]
+];
 
 function getCutoffDate(range: TimeRange): string | null {
-  if (range === 'all') return null
-  const now = new Date()
-  const days = range === 'year' ? 365 : range === 'month' ? 30 : 7
-  now.setDate(now.getDate() - days)
-  return now.toISOString().slice(0, 10)
+  if (range === 'all') return null;
+  const now = new Date();
+  const days = range === 'year' ? 365 : range === 'month' ? 30 : 7;
+  now.setDate(now.getDate() - days);
+  return now.toISOString().slice(0, 10);
 }
 
 interface Dog {
-  id: string
-  name: string
-  picture: string
-  planId?: string
+  id: string;
+  name: string;
+  picture: string;
+  planId?: string;
 }
 
 interface Training {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
 
 interface Session {
-  id?: string
-  dogId: string
-  trainingId: string
-  planId?: string
-  date: string
-  status: 'planned' | 'completed' | 'skipped'
-  score?: number
-  notes?: string
+  id?: string;
+  dogId: string;
+  trainingId: string;
+  planId?: string;
+  date: string;
+  status: 'planned' | 'completed' | 'skipped';
+  score?: number;
+  notes?: string;
 }
 
 interface DogData {
-  dogId: string
-  sessions: Session[]
-  trainings: Training[]
+  dogId: string;
+  sessions: Session[];
+  trainings: Training[];
 }
 
 function ProgressReport() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const selectedDogId = searchParams.get('dog')
-  const selectedTrainingId = searchParams.get('training')
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedDogId = searchParams.get('dog');
+  const selectedTrainingId = searchParams.get('training');
 
-  const [dogs, setDogs] = useState<Dog[]>([])
-  const [error, setError] = useState(false)
-  const [timeRange, setTimeRange] = useState<TimeRange>('all')
-  const [dogData, setDogData] = useState<DogData | null>(null)
+  const [dogs, setDogs] = useState<Dog[]>([]);
+  const [error, setError] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [dogData, setDogData] = useState<DogData | null>(null);
 
   useEffect(() => {
     fetch('/api/dogs')
-      .then(res => {
-        if (!res.ok) throw new Error('fetch failed')
-        return res.json()
+      .then((res) => {
+        if (!res.ok) throw new Error('fetch failed');
+        return res.json();
       })
       .then(setDogs)
-      .catch(() => setError(true))
-  }, [])
+      .catch(() => setError(true));
+  }, []);
 
   useEffect(() => {
-    if (!selectedDogId) return
+    if (!selectedDogId) return;
 
-    let cancelled = false
+    let cancelled = false;
     Promise.all([
-      fetch(`/api/dogs/${selectedDogId}/sessions?from=2000-01-01&to=2099-12-31`).then(r => r.json()),
-      fetch('/api/trainings').then(r => r.json())
+      fetch(`/api/dogs/${selectedDogId}/sessions?from=2000-01-01&to=2099-12-31`).then((r) =>
+        r.json(),
+      ),
+      fetch('/api/trainings').then((r) => r.json()),
     ]).then(([fetchedSessions, fetchedTrainings]) => {
       if (!cancelled) {
-        setDogData({ dogId: selectedDogId, sessions: fetchedSessions, trainings: fetchedTrainings })
+        setDogData({
+          dogId: selectedDogId,
+          sessions: fetchedSessions,
+          trainings: fetchedTrainings,
+        });
       }
-    })
-    return () => { cancelled = true }
-  }, [selectedDogId])
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDogId]);
 
   // Ignore data still belonging to a previously selected dog
-  const loadedData = dogData?.dogId === selectedDogId ? dogData : null
-  const sessions = loadedData?.sessions ?? []
-  const trainings = loadedData?.trainings ?? []
+  const loadedData = dogData?.dogId === selectedDogId ? dogData : null;
+  const sessions = loadedData?.sessions ?? [];
+  const trainings = loadedData?.trainings ?? [];
 
-  const selectedDog = dogs.find(d => d.id === selectedDogId)
+  const selectedDog = dogs.find((d) => d.id === selectedDogId);
 
-  const relevantSessions = sessions.filter(s => s.status === 'completed' || s.status === 'skipped')
-  const relevantTrainingIds = [...new Set(relevantSessions.map(s => s.trainingId))]
-  const relevantTrainings = trainings.filter(t => relevantTrainingIds.includes(t.id))
+  const relevantSessions = sessions.filter(
+    (s) => s.status === 'completed' || s.status === 'skipped',
+  );
+  const relevantTrainingIds = [...new Set(relevantSessions.map((s) => s.trainingId))];
+  const relevantTrainings = trainings.filter((t) => relevantTrainingIds.includes(t.id));
 
-  const selectedTraining = trainings.find(t => t.id === selectedTrainingId)
+  const selectedTraining = trainings.find((t) => t.id === selectedTrainingId);
 
   function selectDog(dogId: string) {
-    setSearchParams({ dog: dogId })
+    setSearchParams({ dog: dogId });
   }
 
   function deselectDog() {
-    setSearchParams({})
-    setTimeRange('all')
+    setSearchParams({});
+    setTimeRange('all');
   }
 
   function selectTraining(trainingId: string) {
-    setSearchParams({ dog: selectedDogId!, training: trainingId })
+    setSearchParams({ dog: selectedDogId!, training: trainingId });
   }
 
   function deselectTraining() {
-    setSearchParams({ dog: selectedDogId! })
-    setTimeRange('all')
+    setSearchParams({ dog: selectedDogId! });
+    setTimeRange('all');
   }
 
   if (error) {
@@ -123,7 +133,7 @@ function ProgressReport() {
           <p className="text-red-500 text-lg">Something went wrong. Please try again later.</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -132,10 +142,7 @@ function ProgressReport() {
       {selectedDog ? (
         <div className="mt-4">
           <p className="text-lg font-semibold">{selectedDog.name}</p>
-          <button
-            onClick={deselectDog}
-            className="mt-2 text-sm text-blue-600 hover:underline"
-          >
+          <button onClick={deselectDog} className="mt-2 text-sm text-blue-600 hover:underline">
             Change dog
           </button>
 
@@ -165,19 +172,19 @@ function ProgressReport() {
               </div>
               <ProgressGraph
                 sessions={sessions
-                  .filter(s => {
-                    if (s.trainingId !== selectedTrainingId) return false
-                    if (s.status !== 'completed' && s.status !== 'skipped') return false
-                    const cutoff = getCutoffDate(timeRange)
-                    if (cutoff && s.date < cutoff) return false
-                    return true
+                  .filter((s) => {
+                    if (s.trainingId !== selectedTrainingId) return false;
+                    if (s.status !== 'completed' && s.status !== 'skipped') return false;
+                    const cutoff = getCutoffDate(timeRange);
+                    if (cutoff && s.date < cutoff) return false;
+                    return true;
                   })
                   .sort((a, b) => a.date.localeCompare(b.date))}
               />
             </div>
           ) : (
             <div className="mt-4 grid gap-3">
-              {relevantTrainings.map(training => (
+              {relevantTrainings.map((training) => (
                 <button
                   key={training.id}
                   onClick={() => selectTraining(training.id)}
@@ -191,13 +198,13 @@ function ProgressReport() {
         </div>
       ) : (
         <div className="mt-4 grid gap-3">
-          {dogs.map(dog => (
+          {dogs.map((dog) => (
             <DogTile key={dog.id} dog={dog} onClick={() => selectDog(dog.id)} />
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default ProgressReport
+export default ProgressReport;

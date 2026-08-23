@@ -6,7 +6,11 @@ import path from 'path';
 export class FakeStorage implements StorageEngine {
   private files = new Map<string, Buffer>();
 
-  _handleFile(_req: Request, file: Express.Multer.File, cb: (error: Error | null, info?: Partial<Express.Multer.File>) => void): void {
+  _handleFile(
+    _req: Request,
+    file: Express.Multer.File,
+    cb: (error: Error | null, info?: Partial<Express.Multer.File>) => void,
+  ): void {
     const chunks: Buffer[] = [];
     file.stream.on('data', (chunk: Buffer) => chunks.push(chunk));
     file.stream.on('end', () => {

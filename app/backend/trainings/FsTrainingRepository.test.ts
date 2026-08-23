@@ -26,25 +26,45 @@ describe('FsTrainingRepository', () => {
   });
 
   it('saves and retrieves a training by id', () => {
-    const training: Training = { id: crypto.randomUUID(), name: 'Sit', procedure: '# Sit', tips: '- tip' };
+    const training: Training = {
+      id: crypto.randomUUID(),
+      name: 'Sit',
+      procedure: '# Sit',
+      tips: '- tip',
+    };
     repo.save(training);
 
     expect(repo.getById(training.id)).toEqual(training);
   });
 
   it('saves and lists all trainings', () => {
-    const t1: Training = { id: crypto.randomUUID(), name: 'Sit', procedure: '# Sit', tips: '- tip' };
-    const t2: Training = { id: crypto.randomUUID(), name: 'Stay', procedure: '# Stay', tips: '- tip' };
+    const t1: Training = {
+      id: crypto.randomUUID(),
+      name: 'Sit',
+      procedure: '# Sit',
+      tips: '- tip',
+    };
+    const t2: Training = {
+      id: crypto.randomUUID(),
+      name: 'Stay',
+      procedure: '# Stay',
+      tips: '- tip',
+    };
     repo.save(t1);
     repo.save(t2);
 
     const all = repo.getAll();
     expect(all).toHaveLength(2);
-    expect(all.map(t => t.name).sort()).toEqual(['Sit', 'Stay']);
+    expect(all.map((t) => t.name).sort()).toEqual(['Sit', 'Stay']);
   });
 
   it('deletes an existing training and returns true', () => {
-    const training: Training = { id: crypto.randomUUID(), name: 'Down', procedure: '# Down', tips: '- tip' };
+    const training: Training = {
+      id: crypto.randomUUID(),
+      name: 'Down',
+      procedure: '# Down',
+      tips: '- tip',
+    };
     repo.save(training);
 
     expect(repo.delete(training.id)).toBe(true);

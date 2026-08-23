@@ -47,7 +47,7 @@ export function createApp(dataRoot: string = path.join(process.cwd(), 'data')) {
       const ext = path.extname(file.originalname);
       const basename = path.basename(file.originalname, ext);
       cb(null, `${basename}-${crypto.randomUUID()}${ext}`);
-    }
+    },
   });
   const dogUpload = multer({ storage: dogStorage });
 
@@ -62,7 +62,7 @@ export function createApp(dataRoot: string = path.join(process.cwd(), 'data')) {
       const ext = path.extname(file.originalname);
       const basename = path.basename(file.originalname, ext);
       cb(null, `${basename}-${crypto.randomUUID()}${ext}`);
-    }
+    },
   });
   const trainingUpload = multer({ storage: trainingStorage });
 

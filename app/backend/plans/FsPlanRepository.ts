@@ -8,9 +8,10 @@ export class FsPlanRepository implements PlanRepository {
 
   getAll(): Plan[] {
     if (!fs.existsSync(this.dataDir)) return [];
-    return fs.readdirSync(this.dataDir)
-      .filter(f => f.endsWith('.json'))
-      .map(f => JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8')));
+    return fs
+      .readdirSync(this.dataDir)
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8')));
   }
 
   getById(id: string): Plan | null {

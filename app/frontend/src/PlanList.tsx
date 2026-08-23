@@ -1,35 +1,35 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 interface Plan {
-  id: string
-  name: string
-  schedule: Record<string, string[]>
+  id: string;
+  name: string;
+  schedule: Record<string, string[]>;
 }
 
 function PlanList() {
-  const [plans, setPlans] = useState<Plan[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetch('/api/plans')
-      .then(res => {
-        if (!res.ok) throw new Error('fetch failed')
-        return res.json()
+      .then((res) => {
+        if (!res.ok) throw new Error('fetch failed');
+        return res.json();
       })
-      .then(data => {
-        setPlans(data)
-        setLoading(false)
+      .then((data) => {
+        setPlans(data);
+        setLoading(false);
       })
       .catch(() => {
-        setError(true)
-        setLoading(false)
-      })
-  }, [])
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
   if (loading) {
-    return <p className="text-slate-500">Loading...</p>
+    return <p className="text-slate-500">Loading...</p>;
   }
 
   if (error) {
@@ -37,7 +37,7 @@ function PlanList() {
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
         <p className="text-red-500 text-lg">Something went wrong. Please try again later.</p>
       </div>
-    )
+    );
   }
 
   if (plans.length === 0) {
@@ -51,7 +51,7 @@ function PlanList() {
           Create a plan
         </Link>
       </div>
-    )
+    );
   }
 
   return (
@@ -67,7 +67,7 @@ function PlanList() {
         </Link>
       </div>
       <div className="space-y-3">
-        {plans.map(plan => (
+        {plans.map((plan) => (
           <Link
             key={plan.id}
             to={`/plans/${plan.id}`}
@@ -79,7 +79,7 @@ function PlanList() {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
-export default PlanList
+export default PlanList;

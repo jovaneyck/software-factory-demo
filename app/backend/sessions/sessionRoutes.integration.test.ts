@@ -45,9 +45,14 @@ describe('Sessions API', () => {
 
     it('creates a session with optional planId and notes', async () => {
       const planId = crypto.randomUUID();
-      const res = await request(app)
-        .post(`/api/dogs/${dogId}/sessions`)
-        .send({ trainingId, planId, date: '2026-02-14', status: 'completed', score: 7, notes: 'Good boy' });
+      const res = await request(app).post(`/api/dogs/${dogId}/sessions`).send({
+        trainingId,
+        planId,
+        date: '2026-02-14',
+        status: 'completed',
+        score: 7,
+        notes: 'Good boy',
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.planId).toBe(planId);
@@ -82,9 +87,7 @@ describe('Sessions API', () => {
     });
 
     it('returns 400 when required fields are missing', async () => {
-      const res = await request(app)
-        .post(`/api/dogs/${dogId}/sessions`)
-        .send({ trainingId });
+      const res = await request(app).post(`/api/dogs/${dogId}/sessions`).send({ trainingId });
 
       expect(res.status).toBe(400);
     });
@@ -125,7 +128,14 @@ describe('Sessions API', () => {
   describe('GET /api/dogs/:dogId/sessions/:id', () => {
     it('returns a session by id', async () => {
       const sessionId = crypto.randomUUID();
-      sessions.save({ id: sessionId, dogId, trainingId, date: '2026-02-14', status: 'completed', score: 9 });
+      sessions.save({
+        id: sessionId,
+        dogId,
+        trainingId,
+        date: '2026-02-14',
+        status: 'completed',
+        score: 9,
+      });
 
       const res = await request(app).get(`/api/dogs/${dogId}/sessions/${sessionId}`);
 
@@ -161,7 +171,14 @@ describe('Sessions API', () => {
   describe('PUT /api/dogs/:dogId/sessions/:id', () => {
     it('updates session status, score and notes', async () => {
       const sessionId = crypto.randomUUID();
-      sessions.save({ id: sessionId, dogId, trainingId, date: '2026-02-14', status: 'completed', score: 5 });
+      sessions.save({
+        id: sessionId,
+        dogId,
+        trainingId,
+        date: '2026-02-14',
+        status: 'completed',
+        score: 5,
+      });
 
       const res = await request(app)
         .put(`/api/dogs/${dogId}/sessions/${sessionId}`)
@@ -198,7 +215,14 @@ describe('Sessions API', () => {
 
     it('returns 400 when score provided for skipped status', async () => {
       const sessionId = crypto.randomUUID();
-      sessions.save({ id: sessionId, dogId, trainingId, date: '2026-02-14', status: 'completed', score: 5 });
+      sessions.save({
+        id: sessionId,
+        dogId,
+        trainingId,
+        date: '2026-02-14',
+        status: 'completed',
+        score: 5,
+      });
 
       const res = await request(app)
         .put(`/api/dogs/${dogId}/sessions/${sessionId}`)
@@ -221,8 +245,9 @@ describe('Sessions API', () => {
 
   describe('GET /api/dogs/:dogId/sessions', () => {
     it('returns empty array when no sessions and no plan', async () => {
-      const res = await request(app)
-        .get(`/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`);
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual([]);
@@ -235,15 +260,21 @@ describe('Sessions API', () => {
         id: planId,
         name: 'Puppy Basics',
         schedule: {
-          monday: [trainingId1], tuesday: [], wednesday: [],
-          thursday: [], friday: [], saturday: [], sunday: []
-        }
+          monday: [trainingId1],
+          tuesday: [],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+          saturday: [],
+          sunday: [],
+        },
       });
       dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg', planId });
 
       // 2026-02-09 is Monday, 2026-02-15 is Sunday
-      const res = await request(app)
-        .get(`/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`);
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(1);
@@ -252,17 +283,25 @@ describe('Sessions API', () => {
         trainingId: trainingId1,
         planId,
         date: '2026-02-09',
-        status: 'planned'
+        status: 'planned',
       });
       expect(res.body[0].id).toBeUndefined();
     });
 
     it('returns persisted sessions in the date range', async () => {
       const sessionId = crypto.randomUUID();
-      sessions.save({ id: sessionId, dogId, trainingId, date: '2026-02-10', status: 'completed', score: 8 });
+      sessions.save({
+        id: sessionId,
+        dogId,
+        trainingId,
+        date: '2026-02-10',
+        status: 'completed',
+        score: 8,
+      });
 
-      const res = await request(app)
-        .get(`/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`);
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(1);
@@ -277,18 +316,32 @@ describe('Sessions API', () => {
         id: planId,
         name: 'Puppy Basics',
         schedule: {
-          monday: [trainingId1], tuesday: [trainingId1], wednesday: [],
-          thursday: [], friday: [], saturday: [], sunday: []
-        }
+          monday: [trainingId1],
+          tuesday: [trainingId1],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+          saturday: [],
+          sunday: [],
+        },
       });
       dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg', planId });
 
       const sessionId = crypto.randomUUID();
-      sessions.save({ id: sessionId, dogId, trainingId: trainingId1, planId, date: '2026-02-09', status: 'completed', score: 9 });
+      sessions.save({
+        id: sessionId,
+        dogId,
+        trainingId: trainingId1,
+        planId,
+        date: '2026-02-09',
+        status: 'completed',
+        score: 9,
+      });
 
       // Query Mon-Tue range
-      const res = await request(app)
-        .get(`/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-10`);
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-10`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(2);
@@ -306,36 +359,47 @@ describe('Sessions API', () => {
     });
 
     it('returns 400 if from/to query params are missing', async () => {
-      const res1 = await request(app)
-        .get(`/api/dogs/${dogId}/sessions`);
+      const res1 = await request(app).get(`/api/dogs/${dogId}/sessions`);
       expect(res1.status).toBe(400);
 
-      const res2 = await request(app)
-        .get(`/api/dogs/${dogId}/sessions?from=2026-02-09`);
+      const res2 = await request(app).get(`/api/dogs/${dogId}/sessions?from=2026-02-09`);
       expect(res2.status).toBe(400);
 
-      const res3 = await request(app)
-        .get(`/api/dogs/${dogId}/sessions?to=2026-02-15`);
+      const res3 = await request(app).get(`/api/dogs/${dogId}/sessions?to=2026-02-15`);
       expect(res3.status).toBe(400);
     });
 
     it('returns 404 if dog does not exist', async () => {
       const fakeDogId = '00000000-0000-0000-0000-000000000000';
-      const res = await request(app)
-        .get(`/api/dogs/${fakeDogId}/sessions?from=2026-02-09&to=2026-02-15`);
+      const res = await request(app).get(
+        `/api/dogs/${fakeDogId}/sessions?from=2026-02-09&to=2026-02-15`,
+      );
 
       expect(res.status).toBe(404);
     });
 
     it('only returns sessions for the requested dog', async () => {
-      sessions.save({ id: crypto.randomUUID(), dogId, trainingId, date: '2026-02-10', status: 'completed' });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-10',
+        status: 'completed',
+      });
 
       const dog2Id = crypto.randomUUID();
       dogs.save({ id: dog2Id, name: 'Rex', picture: 'rex.jpg' });
-      sessions.save({ id: crypto.randomUUID(), dogId: dog2Id, trainingId, date: '2026-02-10', status: 'skipped' });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId: dog2Id,
+        trainingId,
+        date: '2026-02-10',
+        status: 'skipped',
+      });
 
-      const res = await request(app)
-        .get(`/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`);
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions?from=2026-02-09&to=2026-02-15`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(1);

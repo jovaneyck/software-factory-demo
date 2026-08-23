@@ -15,7 +15,7 @@ export class FsSessionRepository implements SessionRepository {
   getByDogIdInRange(dogId: string, from: Date, to: Date): Session[] {
     if (!fs.existsSync(this.dataDir)) return [];
     const results: Session[] = [];
-    const files = fs.readdirSync(this.dataDir).filter(f => f.endsWith('.json'));
+    const files = fs.readdirSync(this.dataDir).filter((f) => f.endsWith('.json'));
     for (const f of files) {
       const session: Session = JSON.parse(fs.readFileSync(path.join(this.dataDir, f), 'utf-8'));
       if (session.dogId !== dogId) continue;
@@ -31,7 +31,10 @@ export class FsSessionRepository implements SessionRepository {
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
-    fs.writeFileSync(path.join(this.dataDir, `${session.id}.json`), JSON.stringify(session, null, 2));
+    fs.writeFileSync(
+      path.join(this.dataDir, `${session.id}.json`),
+      JSON.stringify(session, null, 2),
+    );
   }
 
   delete(id: string): boolean {

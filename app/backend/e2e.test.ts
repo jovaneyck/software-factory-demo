@@ -91,9 +91,14 @@ describe('E2E smoke test', () => {
       .send({
         name: 'Puppy Basics',
         schedule: {
-          monday: [trainingId], tuesday: [trainingId], wednesday: [],
-          thursday: [], friday: [], saturday: [], sunday: []
-        }
+          monday: [trainingId],
+          tuesday: [trainingId],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+          saturday: [],
+          sunday: [],
+        },
       });
 
     expect(res.status).toBe(201);
@@ -118,8 +123,9 @@ describe('E2E smoke test', () => {
     expect(sessionRes.status).toBe(201);
 
     // List sessions Mon-Tue (2026-03-09 is Monday, 2026-03-10 is Tuesday)
-    const listRes = await request(app)
-      .get(`/api/dogs/${dogId}/sessions?from=2026-03-09&to=2026-03-10`);
+    const listRes = await request(app).get(
+      `/api/dogs/${dogId}/sessions?from=2026-03-09&to=2026-03-10`,
+    );
     expect(listRes.status).toBe(200);
     expect(listRes.body).toHaveLength(2);
 
