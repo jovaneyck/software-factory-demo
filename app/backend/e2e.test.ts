@@ -6,6 +6,13 @@ import path from 'path';
 import crypto from 'crypto';
 import type { Express } from 'express';
 
+interface SessionResponse {
+  id?: string;
+  date: string;
+  status: string;
+  score?: number;
+}
+
 describe('E2E smoke test', () => {
   let app: Express;
   let dataRoot: string;
@@ -130,13 +137,13 @@ describe('E2E smoke test', () => {
     expect(listRes.body).toHaveLength(2);
 
     // Monday: persisted completed session
-    const monday = listRes.body.find((s: any) => s.date === '2026-03-09');
-    expect(monday.status).toBe('completed');
-    expect(monday.score).toBe(8);
-    expect(monday.id).toBeDefined();
+    const monday = (listRes.body as SessionResponse[]).find((s) => s.date === '2026-03-09');
+    expect(monday?.status).toBe('completed');
+    expect(monday?.score).toBe(8);
+    expect(monday?.id).toBeDefined();
 
     // Tuesday: computed planned session
-    const tuesday = listRes.body.find((s: any) => s.date === '2026-03-10');
+    const tuesday = (listRes.body as SessionResponse[]).find((s) => s.date === '2026-03-10');
     expect(tuesday.status).toBe('planned');
     expect(tuesday.id).toBeUndefined();
   });

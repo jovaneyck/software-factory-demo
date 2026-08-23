@@ -7,6 +7,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test:watch": "vitest",
     "format": "prettier --write \"**/*.{ts,js,json}\" ",
     "format:check": "prettier --check \"**/*.{ts,js,json}\""
@@ -17,15 +19,19 @@
     "multer": "^2.0.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/multer": "^2.0.0",
     "@types/node": "^20.10.0",
     "@types/supertest": "^2.0.16",
+    "eslint": "^10.9.0",
+    "eslint-plugin-import-x": "^4.17.1",
     "prettier": "^3.9.6",
     "supertest": "^6.3.3",
     "tsx": "^4.6.2",
     "typescript": "^5.3.2",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^1.0.4"
   }
 }

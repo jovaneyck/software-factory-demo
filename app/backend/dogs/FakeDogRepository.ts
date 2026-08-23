@@ -20,5 +20,7 @@ export class FakeDogRepository implements DogRepository {
     return this.data.delete(id);
   }
 
-  deleteUpload(_filename: string): void {}
+  deleteUpload(_filename: string): void {
+    // No-op: fake repository has no uploads to clean up
+  }
 }

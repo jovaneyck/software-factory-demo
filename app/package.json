@@ -10,6 +10,8 @@
     "test": "npm test -w backend && npm test -w frontend",
     "format": "npm run format -w backend && npm run format -w frontend",
     "format:check": "npm run format:check -w backend && npm run format:check -w frontend",
+    "lint": "npm run lint -w backend && npm run lint -w frontend",
+    "lint:fix": "npm run lint:fix -w backend && npm run lint:fix -w frontend",
     "install:all": "npm install -w backend && npm install -w frontend"
   },
   "workspaces": [

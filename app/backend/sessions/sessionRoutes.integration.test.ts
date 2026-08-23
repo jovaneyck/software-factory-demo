@@ -8,6 +8,13 @@ import { FakeSessionRepository } from './FakeSessionRepository.js';
 import { FakePlanRepository } from '../plans/FakePlanRepository.js';
 import { SessionListingService } from './SessionListingService.js';
 
+interface SessionResponse {
+  id?: string;
+  date: string;
+  status: string;
+  score?: number;
+}
+
 describe('Sessions API', () => {
   let app: Express;
   let dogs: FakeDogRepository;
@@ -347,15 +354,15 @@ describe('Sessions API', () => {
       expect(res.body).toHaveLength(2);
 
       // Monday: persisted session takes precedence
-      const monday = res.body.find((s: any) => s.date === '2026-02-09');
-      expect(monday.id).toBeDefined();
-      expect(monday.status).toBe('completed');
-      expect(monday.score).toBe(9);
+      const monday = (res.body as SessionResponse[]).find((s) => s.date === '2026-02-09');
+      expect(monday?.id).toBeDefined();
+      expect(monday?.status).toBe('completed');
+      expect(monday?.score).toBe(9);
 
       // Tuesday: computed planned session
-      const tuesday = res.body.find((s: any) => s.date === '2026-02-10');
-      expect(tuesday.id).toBeUndefined();
-      expect(tuesday.status).toBe('planned');
+      const tuesday = (res.body as SessionResponse[]).find((s) => s.date === '2026-02-10');
+      expect(tuesday?.id).toBeUndefined();
+      expect(tuesday?.status).toBe('planned');
     });
 
     it('returns 400 if from/to query params are missing', async () => {
