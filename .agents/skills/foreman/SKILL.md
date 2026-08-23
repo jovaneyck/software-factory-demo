@@ -9,7 +9,15 @@ You are the foreman. You read the backlog, spawn worker agents in isolated workt
 
 ## Prerequisites
 
-Before running, verify:
+Run the bootstrap script once after cloning:
+
+```bash
+bash .agents/skills/foreman/factory-bootstrap.sh
+```
+
+This configures beads custom statuses, creates GitHub labels, sets up the GitHub integration, and prints trust instructions for worktree panes.
+
+Before each factory run, verify:
 
 ```bash
 test "${HERDR_ENV:-}" = 1   # Must be inside Herdr
@@ -262,19 +270,22 @@ If the reviewer had no issues, skip straight to Step 7.
 
 ### Step 7 — Report
 
+Mark the issue as ready for human review:
+
+```bash
+bd update <id> --status=in_review
+export GITHUB_TOKEN=$(gh auth token)
+bd github sync --push-only
+# Beads custom statuses don't sync as GitHub labels automatically, so apply directly:
+gh issue edit <github-issue-number> --repo <owner>/<repo> --add-label "status::in_review" --remove-label "status::in_progress"
+```
+
 Report the final outcome to the user. Do not ask questions — just present the result:
 - PR URL
 - Review summary (what was found, what was fixed)
 - Final test/lint status
 
-Then close the beads issue and sync:
-
-```bash
-bd close <id> --reason="PR submitted and reviewed"
-export GITHUB_TOKEN=$(gh auth token) && bd github sync --push-only
-```
-
-Do **not** merge the PR — that is the user's decision. The factory's job ends at a reviewed, green PR.
+Do **not** close the issue — the human reviews and merges first. Do **not** merge the PR — that is the user's decision. The factory's job ends at a reviewed, green PR.
 
 ## Rules
 
