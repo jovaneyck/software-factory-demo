@@ -142,9 +142,18 @@ function ProgressReport() {
       {selectedDog ? (
         <div className="mt-4">
           <p className="text-lg font-semibold">{selectedDog.name}</p>
-          <button onClick={deselectDog} className="mt-2 text-sm text-blue-600 hover:underline">
-            Change dog
-          </button>
+          <div className="mt-2 flex items-center gap-3">
+            <button onClick={deselectDog} className="text-sm text-blue-600 hover:underline">
+              Change dog
+            </button>
+            <a
+              href={`/api/dogs/${selectedDogId}/sessions/export`}
+              download
+              className="text-sm bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Export CSV
+            </a>
+          </div>
 
           {selectedTraining ? (
             <div className="mt-4">

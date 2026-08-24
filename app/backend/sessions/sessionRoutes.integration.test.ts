@@ -6,6 +6,7 @@ import { sessionRoutes } from './sessionRoutes.js';
 import { FakeDogRepository } from '../dogs/FakeDogRepository.js';
 import { FakeSessionRepository } from './FakeSessionRepository.js';
 import { FakePlanRepository } from '../plans/FakePlanRepository.js';
+import { FakeTrainingRepository } from '../trainings/FakeTrainingRepository.js';
 import { SessionListingService } from './SessionListingService.js';
 
 interface SessionResponse {
@@ -20,6 +21,7 @@ describe('Sessions API', () => {
   let dogs: FakeDogRepository;
   let sessions: FakeSessionRepository;
   let plans: FakePlanRepository;
+  let trainingsRepo: FakeTrainingRepository;
   const dogId = crypto.randomUUID();
   const trainingId = crypto.randomUUID();
 
@@ -27,10 +29,11 @@ describe('Sessions API', () => {
     dogs = new FakeDogRepository();
     sessions = new FakeSessionRepository();
     plans = new FakePlanRepository();
+    trainingsRepo = new FakeTrainingRepository();
     const service = new SessionListingService(dogs, plans, sessions);
     app = express();
     app.use(express.json());
-    app.use('/api', sessionRoutes(dogs, sessions, service));
+    app.use('/api', sessionRoutes(dogs, sessions, service, trainingsRepo));
 
     dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg' });
   });
@@ -442,6 +445,53 @@ describe('Sessions API', () => {
 
       const res = await request(app).delete(`/api/dogs/${dog2Id}/sessions/${sessionId}`);
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/dogs/:dogId/sessions/export', () => {
+    it('returns CSV with training results', async () => {
+      trainingsRepo.save({ id: trainingId, name: 'Sit', procedure: '', tips: '' });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-14',
+        status: 'completed',
+        score: 8,
+        notes: 'Good boy',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-15',
+        status: 'skipped',
+      });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('text/csv');
+      expect(res.headers['content-disposition']).toContain('Buddy-export-training-results.csv');
+
+      const lines = res.text.split('\n');
+      expect(lines[0]).toBe('date,dog_name,training_name,status,score,notes');
+      expect(lines[1]).toBe('2026-02-14,Buddy,Sit,completed,8,Good boy');
+      expect(lines[2]).toBe('2026-02-15,Buddy,Sit,skipped,,');
+    });
+
+    it('returns 404 for non-existent dog', async () => {
+      const fakeId = '00000000-0000-0000-0000-000000000000';
+      const res = await request(app).get(`/api/dogs/${fakeId}/sessions/export`);
+      expect(res.status).toBe(404);
+    });
+
+    it('excludes planned sessions from export', async () => {
+      // Only persisted completed/skipped sessions should appear
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+      expect(res.status).toBe(200);
+      const lines = res.text.split('\n');
+      expect(lines.length).toBe(1); // header only
     });
   });
 });
