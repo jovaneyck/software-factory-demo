@@ -93,10 +93,16 @@ herdr agent rename <pane-id> "worker-<id>"
 
 ### Step 4 — Prompt the worker
 
-Read the worker prompt template from `prompts/worker-prompt.md` (relative to this skill directory). Fill in the placeholders (`{{ID}}`, `{{TITLE}}`, `{{DESCRIPTION}}`, `{{DESIGN}}`) with the issue details from Step 2. Send the filled prompt verbatim as the agent prompt content:
+Send a short prompt that tells the worker to read its instructions from the prompt file. Do **not** read the prompt file yourself — that pollutes your context. Pass only the placeholder values:
 
 ```bash
-herdr agent prompt "worker-<id>" "<filled prompt>" --wait --timeout 600000
+herdr agent prompt "worker-<id>" "Read your full instructions from .agents/skills/foreman/prompts/worker-prompt.md and follow them. Replace the placeholders with these values:
+- {{ID}} = <id>
+- {{TITLE}} = <title>
+- {{DESCRIPTION}} = <description>
+- {{DESIGN}} = <design or 'None'>
+
+Start now." --wait --timeout 600000
 ```
 
 ---
@@ -149,10 +155,13 @@ done
 herdr agent rename <new-pane-id> "reviewer-<id>"
 ```
 
-Prompt the reviewer using the template from `prompts/reviewer-prompt.md` (relative to this skill directory). Fill in `{{PR_URL}}` and send the filled prompt verbatim as the agent prompt content:
+Send a short prompt that tells the reviewer to read its instructions from the prompt file. Do **not** read the prompt file yourself:
 
 ```bash
-herdr agent prompt "reviewer-<id>" "<filled prompt>" --wait --timeout 300000
+herdr agent prompt "reviewer-<id>" "Read your full instructions from .agents/skills/foreman/prompts/reviewer-prompt.md and follow them. Replace the placeholders with these values:
+- {{PR_URL}} = <pr-url>
+
+Start now." --wait --timeout 300000
 ```
 
 Read the review result:
