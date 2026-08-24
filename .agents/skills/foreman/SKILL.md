@@ -36,8 +36,11 @@ Run this loop for each cycle. Process one issue at a time unless the user asks f
 ```bash
 export GITHUB_TOKEN=$(gh auth token)
 bd github sync
+bash .agents/skills/foreman/factory-reconcile.sh <owner>/<repo>
 bd ready --json
 ```
+
+The [reconcile script](factory-reconcile.sh) closes beads issues whose GitHub issue is closed and marks issues with existing PRs as `in_review` (recovers from mid-cycle crashes).
 
 If no ready issues, check `bd list --status=open --json` and report. Stop if the backlog is empty.
 
@@ -90,109 +93,11 @@ herdr agent rename <pane-id> "worker-<id>"
 
 ### Step 4 — Prompt the worker
 
-Send the worker its task. The prompt must instruct the worker to self-triage using grill-me:
+Read the worker prompt template from `prompts/worker-prompt.md` (relative to this skill directory). Fill in the placeholders (`{{ID}}`, `{{TITLE}}`, `{{DESCRIPTION}}`, `{{DESIGN}}`) with the issue details from Step 2. Send the filled prompt verbatim as the agent prompt content:
 
 ```bash
-herdr agent prompt "worker-<id>" "<prompt>" --wait --timeout 600000
+herdr agent prompt "worker-<id>" "<filled prompt>" --wait --timeout 600000
 ```
-
-Use this prompt template, filling in the issue details:
-
----
-
-You are working on beads issue `<id>`: **<title>**
-
-**Description:**
-<description>
-
-**Design notes (if any):**
-<design>
-
-## Your workflow
-
-### Phase 1 — Grill-me (MANDATORY, do not skip)
-
-You have the grill-me skill loaded. Use it now.
-
-1. Read the issue description and explore the codebase thoroughly (file structure, existing types, API routes, UI components, tests).
-2. Build a **design tree** of every decision needed to implement this issue. Print the full tree.
-3. Compute the **frontier** — every decision whose prerequisites are settled and can be asked now. Print the frontier as a numbered list. For each question, give your recommended answer based on what you found in the codebase.
-4. For each frontier question, classify it:
-   - **RESOLVED**: The answer is unambiguous from the codebase and issue description. State the evidence.
-   - **OPEN**: Requires a human decision — multiple valid options exist, or the issue description is ambiguous.
-
-### Phase 2 — Decision
-
-- **If ALL frontier questions are RESOLVED** (frontier is empty of OPEN questions):
-  Print `FACTORY:FRONTIER_CLEAR`.
-  Sync status to GitHub: `export GITHUB_TOKEN=$(gh auth token) && bd github sync --push-only`
-  Then proceed to Phase 3.
-
-- **If ANY frontier question is OPEN**:
-  Write the open questions to the beads issue: `bd update <id> --notes="<numbered open questions with recommended answers>"`
-  Print `FACTORY:NEEDS_CLARIFICATION` on its own line.
-  Stop and wait — the user will attach to this pane for a grill-me session.
-  After clarification, write the agreed design to the issue: `bd update <id> --design="<design>"`
-  Sync status to GitHub: `export GITHUB_TOKEN=$(gh auth token) && bd github sync --push-only`
-  Then proceed to Phase 3.
-
-### Phase 3 — Implementation (only after Phase 1 and 2)
-
-- Install dependencies first: `cd app && npm install`
-- Implement the solution
-- Fix any failures until tests and linter pass
-
-### Phase 4 — Proof of Work (MANDATORY before PR)
-
-Collect evidence that the change works. This goes into the PR body.
-
-1. **Tests**: Run `npm test` from the `app/` directory. Capture the full output.
-2. **Linter**: Run `npm run lint` from the `app/` directory. Capture the full output.
-3. **Screenshot** (if frontend files were changed): Pick random available ports to avoid collisions with other workers:
-   ```bash
-   # Pick random ports in the 3100-3999 and 5200-5999 ranges
-   BACKEND_PORT=$((3100 + RANDOM % 900))
-   FRONTEND_PORT=$((5200 + RANDOM % 800))
-   # Start backend
-   PORT=$BACKEND_PORT npm run dev --prefix app/backend &
-   # Start frontend (proxy will use BACKEND_PORT via vite.config.ts)
-   BACKEND_PORT=$BACKEND_PORT npx vite --port $FRONTEND_PORT --prefix app/frontend &
-   # Wait for servers, then screenshot
-   npx playwright screenshot --wait-for-timeout 2000 http://localhost:$FRONTEND_PORT/<relevant-path> proof.png
-   ```
-   Stop the dev servers after capturing (kill the background jobs).
-
-### Phase 5 — PR Submission
-
-- Stage and commit: `git add -A && git commit -m "feat(<scope>): <title>"`
-- Create the PR with proof of work in the body:
-  ```
-  gh pr create --title "<title>" --body "Closes <github-issue-url>
-
-  ## Test Output
-  \`\`\`
-  <paste test output>
-  \`\`\`
-
-  ## Lint Output
-  \`\`\`
-  <paste lint output>
-  \`\`\`
-
-  ## Screenshot
-  <if frontend work: upload proof.png to the PR>
-  " --base main
-  ```
-- If a screenshot was captured, commit it and link it in a PR comment:
-  ```bash
-  git add screenshots/ && git commit -m "docs: add proof-of-work screenshots" && git push
-  SHA=$(git rev-parse HEAD)
-  gh pr comment <pr-number> --body "## Screenshots
-  ![form](https://github.com/<owner>/<repo>/blob/$SHA/screenshots/proof-form.png?raw=true)
-  ![profile](https://github.com/<owner>/<repo>/blob/$SHA/screenshots/proof-profile.png?raw=true)"
-  ```
-  Use the commit SHA (not the branch name) in the URL to avoid slash-encoding issues.
-- Print `FACTORY:PR_CREATED:<pr-url>` on its own line
 
 ---
 
@@ -244,10 +149,10 @@ done
 herdr agent rename <new-pane-id> "reviewer-<id>"
 ```
 
-Prompt the reviewer:
+Prompt the reviewer using the template from `prompts/reviewer-prompt.md` (relative to this skill directory). Fill in `{{PR_URL}}` and send the filled prompt verbatim as the agent prompt content:
 
 ```bash
-herdr agent prompt "reviewer-<id>" "Review the PR at <pr-url>. Check out the branch, read the diff, and submit your review using gh pr review --comment (NOT --approve or --request-changes, since the PR author token is the same). Focus on correctness, test coverage, and adherence to the existing codebase patterns." --wait --timeout 300000
+herdr agent prompt "reviewer-<id>" "<filled prompt>" --wait --timeout 300000
 ```
 
 Read the review result:
