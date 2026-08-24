@@ -119,8 +119,17 @@ Parse the output for the factory signals:
 
 - **`FACTORY:FRONTIER_CLEAR`** — Worker self-triaged and is proceeding to implementation. Continue monitoring for `FACTORY:PR_CREATED`.
 - **`FACTORY:PR_CREATED:<url>`** — Worker completed. Proceed to Step 6.
-- **`FACTORY:NEEDS_CLARIFICATION`** — Worker has open design questions. Alert the user:
-  > "⚠️ worker-<id> needs clarification on issue <id>. Open questions have been written to the issue. Attach to the worker's pane or run: `herdr agent focus worker-<id>`"
+- **`FACTORY:NEEDS_CLARIFICATION`** — Worker has open design questions. Read the worker's output to extract the open questions, then:
+  1. Post the questions as a comment on the GitHub issue so the human can review them asynchronously:
+     ```bash
+     gh issue comment <github-issue-number> --repo <owner>/<repo> --body "## 🎭 Design Questions (from worker)\n\n<paste the numbered open questions with recommended answers from the worker output>"
+     ```
+  2. Label the issue:
+     ```bash
+     gh issue edit <github-issue-number> --repo <owner>/<repo> --add-label "status::needs_design" --remove-label "status::in_progress"
+     ```
+  3. Notify:
+     > "⚠️ worker-<id> needs clarification on issue <id>. Open questions have been posted to the GitHub issue. Attach to the worker's pane or run: `herdr agent focus worker-<id>`"
   
   Then wait for the worker to finish after the user clarifies:
   ```bash

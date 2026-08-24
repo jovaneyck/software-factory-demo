@@ -16,8 +16,14 @@ You have the grill-me skill loaded. Use it now.
 2. Build a **design tree** of every decision needed to implement this issue. Print the full tree.
 3. Compute the **frontier** — every decision whose prerequisites are settled and can be asked now. Print the frontier as a numbered list. For each question, give your recommended answer based on what you found in the codebase.
 4. For each frontier question, classify it:
-   - **RESOLVED**: The answer is unambiguous from the codebase and issue description. State the evidence.
-   - **OPEN**: Requires a human decision — multiple valid options exist, or the issue description is ambiguous.
+   - **RESOLVED**: The issue description **explicitly states** the answer, OR there is only one technically valid option. "The codebase happens to do X elsewhere" is NOT sufficient — that's a recommendation, not a constraint.
+   - **OPEN**: The issue description is silent or ambiguous on this point AND more than one reasonable approach exists. Mark it OPEN even if you have a strong recommendation.
+
+   Bias toward OPEN. A question is OPEN if a thoughtful developer could reasonably disagree with your recommended answer. Examples of OPEN questions:
+   - Scope/filtering choices not mentioned in the issue
+   - UI placement when multiple pages could host the feature
+   - Data format details (columns, ordering, naming) not specified
+   - Whether to add new UI controls (date pickers, dropdowns) vs. keeping it simple
 
 ### Phase 2 — Decision
 
@@ -60,6 +66,12 @@ Collect evidence that the change works. This goes into the PR body.
    npx playwright screenshot --wait-for-timeout 2000 http://localhost:$FRONTEND_PORT/<relevant-path> screenshots/proof.png
    ```
    Stop the dev servers after capturing (kill the background jobs).
+
+   **Screenshot validation (MANDATORY):** After capturing, read the screenshot and verify:
+   - The screenshot shows the **specific page/component you changed**, not a generic landing page or error screen.
+   - Your new UI element (button, field, export link, etc.) is **visibly present** in the screenshot.
+   - If the screenshot is wrong (wrong page, blank, error, or your change isn't visible): **do not proceed**. Debug the issue, retake the screenshot, and validate again. Repeat until you have genuine visual proof.
+   - "Tests pass so it's fine" is **NOT acceptable** as a substitute for a correct screenshot. The screenshot exists to prove the UI works end-to-end in a real browser, which tests alone cannot prove.
 
 ### Phase 5 — PR Submission
 
