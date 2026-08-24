@@ -40,7 +40,7 @@ bash .agents/skills/foreman/factory-reconcile.sh <owner>/<repo>
 bd ready --json
 ```
 
-The [reconcile script](factory-reconcile.sh) closes beads issues whose GitHub issue is closed and marks issues with existing PRs as `in_review` (recovers from mid-cycle crashes).
+**Important:** `bd github sync` pulls new issues from GitHub but also resets custom statuses (like `in_review`) back to `open` because GitHub's OPEN state always maps to beads `open`. The [reconcile script](factory-reconcile.sh) runs after sync to fix this: it closes beads issues whose GitHub issue is closed, marks issues with existing PRs as `in_review`, and pushes the corrected state back.
 
 If no ready issues, check `bd list --status=open --json` and report. Stop if the backlog is empty.
 
