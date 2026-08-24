@@ -4,6 +4,7 @@ dist/
 *.log
 .DS_Store
 data/
+!app/backend/seed-data/
 backup-data/
 nul
 /screenshots/

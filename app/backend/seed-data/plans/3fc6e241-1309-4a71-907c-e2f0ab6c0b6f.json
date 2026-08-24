@@ -1,0 +1,34 @@
+{
+  "id": "3fc6e241-1309-4a71-907c-e2f0ab6c0b6f",
+  "name": "Regular week",
+  "schedule": {
+    "monday": [
+      "a236f010-2c36-4e40-a203-061b6757ffe0",
+      "1b85eaf3-1d14-4c57-9938-d1ca5fdb271a"
+    ],
+    "tuesday": [
+      "a236f010-2c36-4e40-a203-061b6757ffe0",
+      "1336fb7b-3898-4ad0-8d62-4bf50c60caa8"
+    ],
+    "wednesday": [
+      "a236f010-2c36-4e40-a203-061b6757ffe0",
+      "1b85eaf3-1d14-4c57-9938-d1ca5fdb271a"
+    ],
+    "thursday": [
+      "a236f010-2c36-4e40-a203-061b6757ffe0",
+      "1336fb7b-3898-4ad0-8d62-4bf50c60caa8"
+    ],
+    "friday": [
+      "a236f010-2c36-4e40-a203-061b6757ffe0",
+      "1b85eaf3-1d14-4c57-9938-d1ca5fdb271a"
+    ],
+    "saturday": [
+      "a236f010-2c36-4e40-a203-061b6757ffe0",
+      "1336fb7b-3898-4ad0-8d62-4bf50c60caa8"
+    ],
+    "sunday": [
+      "a236f010-2c36-4e40-a203-061b6757ffe0",
+      "1b85eaf3-1d14-4c57-9938-d1ca5fdb271a"
+    ]
+  }
+}
