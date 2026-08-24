@@ -42,7 +42,8 @@ You have the grill-me skill loaded. Use it now.
 
 ### Phase 3 — Implementation (only after Phase 1 and 2)
 
-- Install dependencies first: `cd app && npm install`
+- Seed test data: `bash .agents/skills/foreman/factory-seed-data.sh`
+- Install dependencies: `cd app && npm install`
 - Implement the solution
 - Fix any failures until tests and linter pass
 
@@ -59,11 +60,14 @@ Collect evidence that the change works. This goes into the PR body.
    FRONTEND_PORT=$((5200 + RANDOM % 800))
    # Start backend
    PORT=$BACKEND_PORT npm run dev --prefix app/backend &
-   # Start frontend (proxy will use BACKEND_PORT via vite.config.ts)
-   BACKEND_PORT=$BACKEND_PORT npx vite --port $FRONTEND_PORT --prefix app/frontend &
-   # Wait for servers, then screenshot
+   # Start frontend (must cd into frontend dir — vite has no --prefix flag)
+   cd app/frontend && BACKEND_PORT=$BACKEND_PORT npx vite --port $FRONTEND_PORT &
+   cd ../..  # return to repo root
+   # Wait for servers to be ready
+   sleep 5
+   # Take screenshot
    mkdir -p screenshots
-   npx playwright screenshot --wait-for-timeout 2000 http://localhost:$FRONTEND_PORT/<relevant-path> screenshots/proof.png
+   npx playwright screenshot --wait-for-timeout 3000 http://localhost:$FRONTEND_PORT/<relevant-path> screenshots/proof.png
    ```
    Stop the dev servers after capturing (kill the background jobs).
 
