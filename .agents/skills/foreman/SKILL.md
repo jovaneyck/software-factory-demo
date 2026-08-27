@@ -27,6 +27,15 @@ bd github status            # Must show ✓ Configured
 
 If any check fails, stop and tell the user what's missing.
 
+Load the intelligence tier config:
+
+```bash
+WORKER_MODEL=$(cat .agents/factory-config.json | jq -r '.tiers.worker')
+REVIEWER_MODEL=$(cat .agents/factory-config.json | jq -r '.tiers.reviewer')
+```
+
+These values are passed as `--model` flags when spawning agents.
+
 ## The Factory Loop
 
 Run this loop for each cycle. Process one issue at a time unless the user asks for parallel dispatch.
@@ -71,7 +80,7 @@ Read the response JSON. Extract:
 Start the worker agent in that pane. **Do not use `herdr agent start`** — on Windows, `pi` is a Node.js shell script and `agent start` uses `Start-Process` which cannot launch it. Instead, use `pane run` + `agent rename`:
 
 ```bash
-herdr pane run <pane-id> "pi --skill .agents/skills/grill-me --skill .agents/skills/beads"
+herdr pane run <pane-id> "pi --model $WORKER_MODEL --skill .agents/skills/grill-me --skill .agents/skills/beads"
 ```
 
 Wait for the agent to become ready (poll until herdr detects a pi agent in the pane):
@@ -151,7 +160,7 @@ herdr pane split --pane <worker-pane-id> --direction down --cwd <worktree-path> 
 Read the new pane ID from `.result.pane.pane_id`, then:
 
 ```bash
-herdr pane run <new-pane-id> "pi --skill .agents/skills/pr-review --skill .agents/skills/beads"
+herdr pane run <new-pane-id> "pi --model $REVIEWER_MODEL --skill .agents/skills/pr-review --skill .agents/skills/beads"
 ```
 
 Wait for the agent to become ready, then name it:
@@ -223,6 +232,7 @@ Do **not** close the issue — the human reviews and merges first. Do **not** me
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Worker skills.** Always pass `--skill .agents/skills/grill-me` and `--skill .agents/skills/beads` to workers.
 - **Reviewer skills.** Always pass `--skill .agents/skills/pr-review` and `--skill .agents/skills/beads` to reviewers.
+- **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
 - **Worktree cleanup.** After an issue is closed, suggest `herdr worktree remove` but don't run it without asking.
 - **Focus.** Always use `--no-focus` when spawning. The user stays in the foreman pane unless they choose to attach.
 

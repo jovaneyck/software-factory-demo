@@ -10,6 +10,7 @@ PR_NUMBER="$1"
 WORKER_PANE="$2"
 REVIEWER_PANE="$3"
 REPO="${4:-jovaneyck/software-factory-demo}"
+CONFIG=".agents/factory-config.json"
 
 extract_cost() {
   herdr pane read "$1" --source visible --lines 1 2>/dev/null \
@@ -20,6 +21,8 @@ extract_cost() {
 
 WORKER_COST=$(extract_cost "$WORKER_PANE")
 REVIEWER_COST=$(extract_cost "$REVIEWER_PANE")
+WORKER_MODEL=$(jq -r '.tiers.worker' "$CONFIG" 2>/dev/null || echo "unknown")
+REVIEWER_MODEL=$(jq -r '.tiers.reviewer' "$CONFIG" 2>/dev/null || echo "unknown")
 
 if [[ -z "$WORKER_COST" ]]; then WORKER_COST="0.000"; fi
 if [[ -z "$REVIEWER_COST" ]]; then REVIEWER_COST="0.000"; fi
@@ -33,10 +36,10 @@ echo "[cost] Total:    \$$TOTAL"
 export GITHUB_TOKEN="${GITHUB_TOKEN:-$(gh auth token)}"
 
 gh pr comment "$PR_NUMBER" --repo "$REPO" --body "## Factory Cost Report
-| Agent | Cost |
-|-------|------|
-| Worker (grill + implement + fix) | \$$WORKER_COST |
-| Reviewer | \$$REVIEWER_COST |
-| **Total** | **\$$TOTAL** |"
+| Agent | Model | Cost |
+|-------|-------|------|
+| Worker (grill + implement + fix) | \`$WORKER_MODEL\` | \$$WORKER_COST |
+| Reviewer | \`$REVIEWER_MODEL\` | \$$REVIEWER_COST |
+| **Total** | | **\$$TOTAL** |"
 
 echo "[cost] Posted to PR #$PR_NUMBER"

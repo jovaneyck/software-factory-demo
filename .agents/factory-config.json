@@ -1,0 +1,7 @@
+{
+  "tiers": {
+    "foreman": "anthropic/claude-opus-4-6",
+    "worker": "anthropic/claude-opus-4-6",
+    "reviewer": "openai/gpt-5.6-luna"
+  }
+}
