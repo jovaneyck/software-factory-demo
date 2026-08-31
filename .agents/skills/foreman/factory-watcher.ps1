@@ -82,19 +82,27 @@ while ($true) {
 
         herdr notification show "Factory: $($newNumbers.Count) new issues" --body "$readyCount ready" --sound request 2>$null | Out-Null
 
-        # Poke foreman if idle
+        # Poke foreman if idle — use pane send-text because agent prompt
+        # doesn't work on Windows (pi isn't the foreground process)
         $state = "missing"
+        $paneId = $null
         try {
             $raw = herdr agent get $Foreman 2>$null | Out-String
             if ($raw -match '"agent_status"\s*:\s*"([^"]+)"') {
                 $state = $Matches[1]
             }
+            if ($raw -match '"pane_id"\s*:\s*"([^"]+)"') {
+                $paneId = $Matches[1]
+            }
         } catch {}
 
-        if ($state -eq "idle" -or $state -eq "done") {
-            Write-Host "[watcher] Poking foreman..."
-            herdr agent prompt $Foreman "/factory" 2>$null | Out-Null
+        if (($state -eq "idle" -or $state -eq "done") -and $paneId) {
+            Write-Host "[watcher] Poking foreman (pane $paneId)..."
+            herdr pane send-text $paneId "/factory" 2>$null | Out-Null
+            herdr pane send-keys $paneId Enter 2>$null | Out-Null
             Write-Host "[watcher] Foreman poked"
+        } elseif (-not $paneId) {
+            Write-Host "[watcher] Foreman is $state, no pane found"
         } else {
             Write-Host "[watcher] Foreman is $state, skipping"
         }
