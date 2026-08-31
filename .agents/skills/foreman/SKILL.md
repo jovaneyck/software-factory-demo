@@ -53,7 +53,7 @@ bd ready --json
 
 If no ready issues, check `bd list --status=open --json` and report. Stop if the backlog is empty.
 
-Present the ready issues to the user and ask which to work on, unless the user already specified an issue.
+Pick the highest-priority ready issue (break ties by oldest first). Do **not** ask the user which issue to work on — just go. If the user specified an issue, use that one instead.
 
 ### Step 2 — Claim the issue
 
