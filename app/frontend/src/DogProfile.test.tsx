@@ -374,4 +374,138 @@ describe('DogProfile', () => {
     expect(screen.queryByRole('link', { name: /view plan/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /unassign/i })).not.toBeInTheDocument();
   });
+
+  it('deletes a dog after confirmation and navigates to dog list', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+
+    vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}` && (!options || !options.method)) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}` && options?.method === 'DELETE') {
+        return Promise.resolve({ ok: true, status: 204 } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/" element={<div>Dog List Page</div>} />
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /delete dog/i }));
+
+    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete Buddy?');
+
+    await waitFor(() => {
+      expect(screen.getByText('Dog List Page')).toBeInTheDocument();
+    });
+  });
+
+  it('does not delete when confirmation is cancelled', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /delete dog/i }));
+
+    // Should still be on the dog profile page
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+    // DELETE fetch should not have been called
+    const deleteCalls = fetchSpy.mock.calls.filter(
+      ([url, opts]) => String(url) === `/api/dogs/${DOG_ID}` && (opts as RequestInit)?.method === 'DELETE',
+    );
+    expect(deleteCalls).toHaveLength(0);
+  });
+
+  it('shows alert when delete fails', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+
+    vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}` && (!options || !options.method)) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}` && options?.method === 'DELETE') {
+        return Promise.resolve({ ok: false, status: 500 } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /delete dog/i }));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Failed to delete dog. Please try again.');
+    });
+
+    // Should still be on the profile page
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+  });
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import ProgressView from './ProgressView';
 
 interface Dog {
@@ -22,6 +22,7 @@ interface Training {
 
 function DogProfile() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [dog, setDog] = useState<Dog | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -74,6 +75,16 @@ function DogProfile() {
         setAssignedPlan(await planRes.json());
       }
       setSelectedPlanId('');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${dog?.name}?`)) return;
+    const res = await fetch(`/api/dogs/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      navigate('/');
+    } else {
+      window.alert('Failed to delete dog. Please try again.');
     }
   };
 
@@ -168,6 +179,15 @@ function DogProfile() {
           </div>
         </div>
       )}
+
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <button
+          onClick={handleDelete}
+          className="bg-red-50 text-red-600 px-6 py-3 rounded-xl font-medium hover:bg-red-100 transition-colors w-full"
+        >
+          Delete Dog
+        </button>
+      </div>
     </div>
   );
 }
