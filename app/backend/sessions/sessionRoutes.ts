@@ -14,6 +14,18 @@ function escapeCsvField(value: string): string {
   return value;
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE_RE.test(value)) return false;
+  const d = new Date(`${value}T00:00:00`);
+  return !isNaN(d.getTime());
+}
+
+function sanitizeFilename(name: string): string {
+  return name.replace(/[\r\n"/\\:*?<>|]/g, '_').trim() || 'export';
+}
+
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
@@ -28,6 +40,21 @@ export function sessionRoutes(
     const { dogId } = req.params;
     const from = req.query.from as string | undefined;
     const to = req.query.to as string | undefined;
+
+    // Reject partial date filters
+    if ((from && !to) || (!from && to)) {
+      return res.status(400).json({ error: 'Both from and to query params are required when filtering by date' });
+    }
+
+    // Validate date format and order when provided
+    if (from && to) {
+      if (!isValidIsoDate(from) || !isValidIsoDate(to)) {
+        return res.status(400).json({ error: 'from and to must be valid ISO dates (YYYY-MM-DD)' });
+      }
+      if (from > to) {
+        return res.status(400).json({ error: 'from must not be after to' });
+      }
+    }
 
     const dog = dogs.getById(dogId);
     if (!dog) return res.status(404).json({ error: 'Dog not found' });
@@ -66,8 +93,9 @@ export function sessionRoutes(
 
     const csv = [header, ...rows].join('\n');
 
+    const safeName = sanitizeFilename(dog.name);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${dog.name}-sessions.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}-sessions.csv"`);
     res.send(csv);
   });
 

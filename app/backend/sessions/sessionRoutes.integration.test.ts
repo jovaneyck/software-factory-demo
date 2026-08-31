@@ -552,5 +552,55 @@ describe('Sessions API', () => {
       expect(lines[1]).toContain('"Sit, Stay"');
       expect(lines[1]).toContain('"Great, very good"');
     });
+
+    it('returns 400 when only from is provided', async () => {
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?from=2026-02-01`,
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 when only to is provided', async () => {
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?to=2026-02-28`,
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for malformed date in from', async () => {
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?from=not-a-date&to=2026-02-28`,
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 when from is after to', async () => {
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?from=2026-03-01&to=2026-02-01`,
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it('sanitizes dog name in Content-Disposition filename', async () => {
+      const dogWithQuotes = crypto.randomUUID();
+      dogs.save({ id: dogWithQuotes, name: 'Mr "Barkley" O\'Brien', picture: 'bark.jpg' });
+
+      const res = await request(app).get(`/api/dogs/${dogWithQuotes}/sessions/export`);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-disposition']).not.toContain('"Barkley"');
+      expect(res.headers['content-disposition']).toMatch(/filename="[^"]+\.csv"/);
+    });
+
+    it('sanitizes dog name containing newlines', async () => {
+      const dogWithNewline = crypto.randomUUID();
+      dogs.save({ id: dogWithNewline, name: 'Bad\r\nName', picture: 'bad.jpg' });
+
+      const res = await request(app).get(`/api/dogs/${dogWithNewline}/sessions/export`);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-disposition']).toMatch(/filename="[^"]+\.csv"/);
+      expect(res.headers['content-disposition']).not.toMatch(/[\r\n]/);
+    });
   });
 });
