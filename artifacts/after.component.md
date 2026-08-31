@@ -1,10 +1,10 @@
 # Component Diagram (after)
 
-**Head:** `670301c` — fix(dogs): wrap handleDelete fetch in try/catch for network failures (Jo Van Eyck, 2026-08-31)
+**Head:** `cad32c7` — docs: update architecture artifact head references to final PR commit (Jo Van Eyck, 2026-08-31)
 
 ```mermaid
 C4Component
-  title Component Diagram — after (670301c)
+  title Component Diagram — after (cad32c7)
 
   Container_Boundary(frontend, "Frontend (React SPA)") {
     Component(app, "App", "React", "Root router, renders DogProfile at /dogs/:id")
@@ -30,7 +30,7 @@ C4Component
 ## Evidence
 - `App` routes to `DogProfile` — `app/frontend/src/App.tsx` (`<Route path="/dogs/:id" element={<DogProfile />} />`).
 - `DogProfile` renders `ProgressView` — `app/frontend/src/DogProfile.tsx` (`import ProgressView`; `<ProgressView dogId={id!} ... />`).
-- `DogProfile` calls `dogRoutes` — `fetch(/api/dogs/${id})`, `fetch(/api/dogs/${id}/plan, {method:'PUT'})`, `fetch(/api/dogs/${id}/plan, {method:'DELETE'})`, **`fetch(/api/dogs/${id}, {method:'DELETE'})`** (new).
+- `DogProfile` calls `dogRoutes` — `fetch(/api/dogs/${id})`, `fetch(/api/dogs/${id}/plan, {method:'PUT'})`, `fetch(/api/dogs/${id}/plan, {method:'DELETE'})`, `fetch(/api/dogs/${id}, {method:'DELETE'})` (new, wrapped in try/catch).
 - `DogProfile` calls `planRoutes` — `fetch('/api/plans')`, `fetch(/api/plans/${...})`.
 - `DogProfile` calls `trainingRoutes` — `fetch('/api/trainings')`.
-- `DogProfile` navigates to dog list — `<Link to="/">` (Back link) + **`navigate('/')`** after delete (new).
+- `DogProfile` navigates to dog list — `<Link to="/">` (Back link) + `navigate('/')` after successful delete (new).

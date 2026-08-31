@@ -1,11 +1,11 @@
 # Component Diagram (diff)
 
 **Base:** `17ab2c9` — le format (Jo Van Eyck, 2026-08-27)
-**Head:** `670301c` — fix(dogs): wrap handleDelete fetch in try/catch for network failures (Jo Van Eyck, 2026-08-31)
+**Head:** `cad32c7` — docs: update architecture artifact head references to final PR commit (Jo Van Eyck, 2026-08-31)
 
 ```mermaid
 C4Component
-  title Component Diff — feat(dogs): add delete functionality (670301c) vs le format (17ab2c9)
+  title Component Diff — feat(dogs): add delete functionality (cad32c7) vs le format (17ab2c9)
 
   Container_Boundary(frontend, "Frontend (React SPA)") {
     Component(app, "App", "React", "Root router, renders DogProfile at /dogs/:id")
@@ -37,7 +37,7 @@ C4Component
 🟢 added  🔴 removed  🟠 changed  ⚪ unchanged (context)
 
 ## Evidence
-- 🟠 `DogProfile` — gained `useNavigate` import and `handleDelete` function in `app/frontend/src/DogProfile.tsx`. New Delete Dog button renders a `<button>` calling `handleDelete()` which invokes `window.confirm()`, then `fetch(\`/api/dogs/${id}\`, { method: 'DELETE' })`, then `navigate('/')`.
+- 🟠 `DogProfile` — gained `useNavigate` import and `handleDelete` function in `app/frontend/src/DogProfile.tsx`. New Delete Dog button calls `window.confirm()`, then `fetch(/api/dogs/${id}, {method:'DELETE'})` wrapped in `try/catch`, then `navigate('/')` on success. Both non-OK responses and rejected promises show a failure alert.
 - 🟠 `DogProfile → dogRoutes` — relationship expanded: previously called `GET /api/dogs/:id`, `PUT /api/dogs/:id/plan`, `DELETE /api/dogs/:id/plan`. Now additionally calls `DELETE /api/dogs/:id` (the dog-level delete endpoint).
 - 🟠 `DogProfile → DogList` — navigation mechanism expanded: previously only `<Link to="/">` (Back link). Now also `navigate('/')` via `useNavigate` after successful delete, providing programmatic navigation.
 
