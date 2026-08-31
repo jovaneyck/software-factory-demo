@@ -400,4 +400,35 @@ describe('ProgressReport', () => {
       expect(dots.length).toBe(4);
     });
   });
+
+  it('shows Export CSV link after selecting a dog', async () => {
+    const user = userEvent.setup();
+    mockFetchAll();
+
+    renderAt('/progress');
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Buddy'));
+
+    await waitFor(() => {
+      const link = screen.getByRole('link', { name: /export csv/i });
+      expect(link).toBeInTheDocument();
+      expect(link).toHaveAttribute('href', '/api/dogs/dog-1/sessions/export');
+    });
+  });
+
+  it('does not show Export CSV link before selecting a dog', async () => {
+    mockFetchDogsOnly();
+
+    renderAt('/progress');
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('link', { name: /export csv/i })).not.toBeInTheDocument();
+  });
 });

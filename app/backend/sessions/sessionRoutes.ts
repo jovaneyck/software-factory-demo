@@ -3,17 +3,70 @@ import crypto from 'crypto';
 import type { DogRepository } from '../dogs/DogRepository.js';
 import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
+import type { TrainingRepository } from '../trainings/TrainingRepository.js';
 import type { Session } from '../shared/types.js';
 import { validateUuid } from '../shared/validateUuid.js';
+
+function escapeCsvField(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return '"' + value.replace(/"/g, '""') + '"';
+  }
+  return value;
+}
 
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  trainings?: TrainingRepository,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
   router.param('dogId', validateUuid);
+
+  router.get('/dogs/:dogId/sessions/export', (req, res) => {
+    const { dogId } = req.params;
+    const from = (req.query.from as string) || '2000-01-01';
+    const to = (req.query.to as string) || '2099-12-31';
+
+    const dog = dogs.getById(dogId);
+    if (!dog) return res.status(404).json({ error: 'Dog not found' });
+
+    const fromDate = new Date(`${from}T00:00:00`);
+    const toDate = new Date(`${to}T00:00:00`);
+
+    const result = service.list(dogId, fromDate, toDate);
+    if ('error' in result) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    // Build a training name lookup
+    const trainingMap = new Map<string, string>();
+    if (trainings) {
+      for (const t of trainings.getAll()) {
+        trainingMap.set(t.id, t.name);
+      }
+    }
+
+    const header = 'date,dog,training,status,score,notes';
+    const rows = result.sessions.map((s) => {
+      const date = escapeCsvField(String(s.date ?? ''));
+      const dogName = escapeCsvField(dog.name);
+      const trainingName = escapeCsvField(
+        trainingMap.get(s.trainingId as string) || String(s.trainingId ?? ''),
+      );
+      const status = escapeCsvField(String(s.status ?? ''));
+      const score = s.score != null ? String(s.score) : '';
+      const notes = escapeCsvField(String(s.notes ?? ''));
+      return `${date},${dogName},${trainingName},${status},${score},${notes}`;
+    });
+
+    const csv = [header, ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${dog.name}-sessions.csv"`);
+    res.send(csv);
+  });
 
   router.get('/dogs/:dogId/sessions', (req, res) => {
     const { dogId } = req.params;
