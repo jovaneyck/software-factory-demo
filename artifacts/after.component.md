@@ -1,10 +1,10 @@
 # Component Diagram (after)
 
-**Head:** `b125528` — docs: add proof-of-work screenshots (Jo Van Eyck, 2026-08-31)
+**Head:** `670301c` — fix(dogs): wrap handleDelete fetch in try/catch for network failures (Jo Van Eyck, 2026-08-31)
 
 ```mermaid
 C4Component
-  title Component Diagram — after (b125528)
+  title Component Diagram — after (670301c)
 
   Container_Boundary(frontend, "Frontend (React SPA)") {
     Component(app, "App", "React", "Root router, renders DogProfile at /dogs/:id")

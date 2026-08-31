@@ -1,11 +1,11 @@
 # Component Diagram (diff)
 
 **Base:** `17ab2c9` — le format (Jo Van Eyck, 2026-08-27)
-**Head:** `b125528` — docs: add proof-of-work screenshots (Jo Van Eyck, 2026-08-31)
+**Head:** `670301c` — fix(dogs): wrap handleDelete fetch in try/catch for network failures (Jo Van Eyck, 2026-08-31)
 
 ```mermaid
 C4Component
-  title Component Diff — feat(dogs): add delete functionality (b125528) vs le format (17ab2c9)
+  title Component Diff — feat(dogs): add delete functionality (670301c) vs le format (17ab2c9)
 
   Container_Boundary(frontend, "Frontend (React SPA)") {
     Component(app, "App", "React", "Root router, renders DogProfile at /dogs/:id")
