@@ -80,10 +80,14 @@ function DogProfile() {
 
   const handleDelete = async () => {
     if (!window.confirm(`Are you sure you want to delete ${dog?.name}?`)) return;
-    const res = await fetch(`/api/dogs/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      navigate('/');
-    } else {
+    try {
+      const res = await fetch(`/api/dogs/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        navigate('/');
+      } else {
+        window.alert('Failed to delete dog. Please try again.');
+      }
+    } catch {
       window.alert('Failed to delete dog. Please try again.');
     }
   };

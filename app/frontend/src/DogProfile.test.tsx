@@ -508,4 +508,50 @@ describe('DogProfile', () => {
     // Should still be on the profile page
     expect(screen.getByText('Buddy')).toBeInTheDocument();
   });
+
+  it('shows alert when delete request is rejected (network failure)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+
+    vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}` && (!options || !options.method)) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}` && options?.method === 'DELETE') {
+        return Promise.reject(new Error('Network error'));
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /delete dog/i }));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Failed to delete dog. Please try again.');
+    });
+
+    // Should still be on the profile page
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+  });
 });
