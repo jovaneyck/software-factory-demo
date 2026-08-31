@@ -26,18 +26,19 @@ export function sessionRoutes(
 
   router.get('/dogs/:dogId/sessions/export', (req, res) => {
     const { dogId } = req.params;
-    const from = (req.query.from as string) || '2000-01-01';
-    const to = (req.query.to as string) || '2099-12-31';
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
 
     const dog = dogs.getById(dogId);
     if (!dog) return res.status(404).json({ error: 'Dog not found' });
 
-    const fromDate = new Date(`${from}T00:00:00`);
-    const toDate = new Date(`${to}T00:00:00`);
-
-    const result = service.list(dogId, fromDate, toDate);
-    if ('error' in result) {
-      return res.status(404).json({ error: result.error });
+    let sessionList;
+    if (from && to) {
+      const fromDate = new Date(`${from}T00:00:00`);
+      const toDate = new Date(`${to}T00:00:00`);
+      sessionList = sessions.getByDogIdInRange(dogId, fromDate, toDate);
+    } else {
+      sessionList = sessions.getByDogId(dogId);
     }
 
     // Build a training name lookup
@@ -49,17 +50,19 @@ export function sessionRoutes(
     }
 
     const header = 'date,dog,training,status,score,notes';
-    const rows = result.sessions.map((s) => {
-      const date = escapeCsvField(String(s.date ?? ''));
-      const dogName = escapeCsvField(dog.name);
-      const trainingName = escapeCsvField(
-        trainingMap.get(s.trainingId as string) || String(s.trainingId ?? ''),
-      );
-      const status = escapeCsvField(String(s.status ?? ''));
-      const score = s.score != null ? String(s.score) : '';
-      const notes = escapeCsvField(String(s.notes ?? ''));
-      return `${date},${dogName},${trainingName},${status},${score},${notes}`;
-    });
+    const rows = sessionList
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((s) => {
+        const date = escapeCsvField(s.date);
+        const dogName = escapeCsvField(dog.name);
+        const trainingName = escapeCsvField(
+          trainingMap.get(s.trainingId) || s.trainingId,
+        );
+        const status = escapeCsvField(s.status);
+        const score = s.score != null ? String(s.score) : '';
+        const notes = escapeCsvField(s.notes ?? '');
+        return `${date},${dogName},${trainingName},${status},${score},${notes}`;
+      });
 
     const csv = [header, ...rows].join('\n');
 
