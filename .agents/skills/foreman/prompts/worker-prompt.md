@@ -77,23 +77,6 @@ Collect evidence that the change works. This goes into the PR body.
    - If the screenshot is wrong (wrong page, blank, error, or your change isn't visible): **do not proceed**. Debug the issue, retake the screenshot, and validate again. Repeat until you have genuine visual proof.
    - "Tests pass so it's fine" is **NOT acceptable** as a substitute for a correct screenshot. The screenshot exists to prove the UI works end-to-end in a real browser, which tests alone cannot prove.
 
-### Phase 4.5 — C4 Architecture Diff (MANDATORY before PR)
-
-Generate a C4 component diff diagram showing the structural impact of your changes. Use the `/c4-diff` skill (you have it loaded as `c4-diff`).
-
-1. Find the merge-base with main:
-   ```bash
-   BASE=$(git merge-base main HEAD)
-   ```
-2. Run the c4-diff workflow from the skill: use `base=$BASE` and `head=HEAD`, output to `./artifacts/`.
-3. The skill will produce three files: `artifacts/before.component.md`, `artifacts/after.component.md`, `artifacts/diff.component.md`.
-4. Read `artifacts/diff.component.md` and extract the Mermaid diagram block — you'll embed it in the PR body.
-5. If the change is purely non-structural (config, formatting), note that in the diff artifact and use "No structural change" in the PR.
-6. Commit the artifacts:
-   ```bash
-   git add artifacts/ && git commit -m "docs: add C4 architecture diff diagrams"
-   ```
-
 ### Phase 5 — PR Submission
 
 Use the PR template at `.agents/skills/foreman/pr-template.md` to build the PR body. Follow these steps exactly:
@@ -107,7 +90,6 @@ Use the PR template at `.agents/skills/foreman/pr-template.md` to build the PR b
 4. Build the PR body by filling in the template placeholders:
    - `{{GITHUB_ISSUE_URL}}` — the full GitHub issue URL
    - `{{SUMMARY}}` — one-line description of the change
-   - `{{C4_DIFF}}` — the full contents of `artifacts/diff.component.md` (including the Mermaid block)
    - `{{TEST_OUTPUT}}` — last 20 lines of `npm test` output
    - `{{LINT_OUTPUT}}` — lint output (or "Clean — no warnings or errors.")
    - `{{SCREENSHOTS}}` — see below

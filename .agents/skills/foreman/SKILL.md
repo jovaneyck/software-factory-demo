@@ -154,9 +154,13 @@ Parse the output for the factory signals:
 
 - **Neither signal found** — Read more output, check agent state with `herdr agent get "worker-<id>"`. If blocked or errored, report to the user.
 
-### Step 6 — Review and fix cycle (automatic, no human input)
+### Step 6 — Review and fix loop (automatic, no human input)
 
-Once a PR exists, spawn a reviewer in the same worktree workspace:
+Once a PR exists, spawn a reviewer in the same worktree workspace. The reviewer and worker then iterate until the reviewer is satisfied (LGTM) or a safety limit is reached.
+
+**Safety limit:** Maximum **3 review rounds.** If the reviewer still finds issues after 3 rounds, stop the loop and escalate to the user.
+
+#### 6a — Spawn the reviewer (once)
 
 ```bash
 herdr pane split --pane <worker-pane-id> --direction down --cwd <worktree-path> --no-focus
@@ -179,14 +183,24 @@ done
 herdr agent rename <new-pane-id> "reviewer-<id>"
 ```
 
-Send a short prompt that tells the reviewer to read its instructions from the prompt file. Do **not** read the prompt file yourself:
+#### 6b — Review/fix loop
 
-```bash
-herdr agent prompt "reviewer-<id>" "Read your full instructions from .agents/skills/foreman/prompts/reviewer-prompt.md and follow them. Replace the placeholders with these values:
-- {{PR_URL}} = <pr-url>
+Set `ROUND=1`. Then repeat:
 
-Start now." --wait --timeout 300000
-```
+**Review phase:**
+
+- **Round 1 (first review):** Send a prompt that tells the reviewer to read its instructions from the prompt file. Do **not** read the prompt file yourself:
+  ```bash
+  herdr agent prompt "reviewer-<id>" "Read your full instructions from .agents/skills/foreman/prompts/reviewer-prompt.md and follow them. Replace the placeholders with these values:
+  - {{PR_URL}} = <pr-url>
+
+  Start now." --wait --timeout 300000
+  ```
+
+- **Round 2+ (subsequent reviews):** The reviewer already has context. Just tell it to re-review:
+  ```bash
+  herdr agent prompt "reviewer-<id>" "The worker pushed fixes for the issues you found. Re-review PR #<pr-number> to check whether your feedback was addressed and look for any new issues. Post a new review comment." --wait --timeout 300000
+  ```
 
 Read the review result:
 
@@ -196,15 +210,31 @@ herdr agent read "reviewer-<id>" --source recent-unwrapped --lines 30
 
 Check only whether the reviewer found issues or not (look for keywords like "no issues", "looks good", "LGTM" vs "missing", "should", "bug", "issue"). Do NOT read the full review content — that bloats your context window.
 
-If the reviewer found issues, tell the worker to read them directly from GitHub and fix:
+**If LGTM (no issues):** Break out of the loop. Proceed to Step 7.
+
+**If issues found and ROUND < 3:** Tell the worker to fix:
 
 ```bash
-herdr agent prompt "worker-<id>" "The reviewer left feedback on PR #<pr-number>. Read the review comments with: gh pr view <pr-number> --comments. Address ALL issues, run tests and linter, commit, and push. Print FACTORY:FIXES_PUSHED when done." --wait --timeout 600000
+herdr agent prompt "worker-<id>" "The reviewer left feedback on PR #<pr-number> (review round ROUND). Read the review comments with: gh pr view <pr-number> --comments. Address ALL issues from the latest review, run tests and linter, commit, and push. Print FACTORY:FIXES_PUSHED when done." --wait --timeout 600000
 ```
 
-After the worker pushes fixes, read its output and verify `FACTORY:FIXES_PUSHED`.
+After the worker pushes fixes (verify `FACTORY:FIXES_PUSHED`), increment `ROUND` and loop back to the **Review phase**.
 
-If the reviewer had no issues, skip straight to Step 7.
+**If issues found and ROUND >= 3:** The review/fix cycle has not converged. Stop the loop and escalate:
+
+> "⚠️ Review loop did not converge after 3 rounds on PR #<pr-number>. The reviewer is still finding issues. Please review the PR manually or attach to the worker/reviewer panes to guide them."
+
+Still proceed to Step 7 (cost report + status update) so the work isn't lost, but note the unresolved state in the report.
+
+### Step 6c — C4 Architecture Diff (after review loop converges)
+
+Once the review loop is done (LGTM or escalated), prompt the worker to generate the C4 architecture diff and update the PR. This runs last so the diagrams reflect the final code, not an intermediate version that changed during review rounds.
+
+```bash
+herdr agent prompt "worker-<id>" "Generate a C4 architecture diff for the final state of your branch. Follow the c4-diff skill: use BASE=$(git merge-base main HEAD) and HEAD=HEAD, output to ./artifacts/. Commit the artifacts, push, then update the PR body to include an Architecture Diff section (the full contents of artifacts/diff.component.md) between the Summary and Test Output sections. Use gh pr edit <pr-number> --body-file /tmp/pr-body.md. Print FACTORY:C4_DIFF_ADDED when done." --wait --timeout 300000
+```
+
+Verify `FACTORY:C4_DIFF_ADDED` in the worker output. If it fails, note it in the report but don't block Step 7.
 
 ### Step 7 — Cost report and status update
 
@@ -226,8 +256,10 @@ gh issue edit <github-issue-number> --repo <owner>/<repo> --add-label "status::i
 
 Report the final outcome to the user. Do not ask questions — just present the result:
 - PR URL
-- Review summary (what was found, what was fixed)
+- Review rounds completed (e.g. "2 rounds — round 1 found issues, round 2 LGTM")
+- Review summary (what was found per round, what was fixed)
 - Final test/lint status
+- Whether the loop converged or was escalated
 
 Do **not** close the issue — the human reviews and merges first. Do **not** merge the PR — that is the user's decision. The factory's job ends at a reviewed, green PR.
 
