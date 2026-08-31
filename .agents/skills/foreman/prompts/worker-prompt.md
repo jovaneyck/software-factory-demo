@@ -84,7 +84,7 @@ Use the PR template at `.agents/skills/foreman/pr-template.md` to build the PR b
 1. Stage and commit implementation: `git add -A && git commit -m "feat(<scope>): <title>"`
 2. If screenshots were captured, commit them in the same branch:
    ```bash
-   git add screenshots/ && git commit -m "docs: add proof-of-work screenshots"
+   git add -f screenshots/ && git commit -m "docs: add proof-of-work screenshots"
    ```
 3. Push the branch: `git push origin HEAD`
 4. Build the PR body by filling in the template placeholders:
