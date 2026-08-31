@@ -77,10 +77,15 @@ Read the response JSON. Extract:
 - `.result.root_pane.pane_id` — the pane to start the agent in
 - The worktree path from `.result.worktree.path`
 
-Start the worker agent in that pane. **Do not use `herdr agent start`** — on Windows, `pi` is a Node.js shell script and `agent start` uses `Start-Process` which cannot launch it. Instead, use `pane run` + `agent rename`:
+Start the worker agent in that pane. **Do not use `herdr agent start`** — on Windows, `pi` is a Node.js shell script and `agent start` uses `Start-Process` which cannot launch it. Instead, use `pane run` + `agent rename`.
+
+Derive a session slug from the GitHub issue number and title for traceability:
 
 ```bash
-herdr pane run <pane-id> "pi --model $WORKER_MODEL --skill .agents/skills/grill-me --skill .agents/skills/beads"
+# Derive a slug: e.g. issue #5 "Add a dog age field" → "5-add-a-dog-age-field"
+SESSION_SLUG=$(echo "<github-issue-number>-<title>" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//' | cut -c1-60)
+
+herdr pane run <pane-id> "pi --model $WORKER_MODEL --session-id worker-${SESSION_SLUG} --name 'worker #<github-issue-number>: <title>' --skill .agents/skills/grill-me --skill .agents/skills/beads"
 ```
 
 Wait for the agent to become ready (poll until herdr detects a pi agent in the pane):
@@ -160,7 +165,8 @@ herdr pane split --pane <worker-pane-id> --direction down --cwd <worktree-path> 
 Read the new pane ID from `.result.pane.pane_id`, then:
 
 ```bash
-herdr pane run <new-pane-id> "pi --model $REVIEWER_MODEL --skill .agents/skills/pr-review --skill .agents/skills/beads"
+# Reuse the same SESSION_SLUG derived in Step 3
+herdr pane run <new-pane-id> "pi --model $REVIEWER_MODEL --session-id reviewer-${SESSION_SLUG} --name 'reviewer #<github-issue-number>: <title>' --skill .agents/skills/pr-review --skill .agents/skills/beads"
 ```
 
 Wait for the agent to become ready, then name it:

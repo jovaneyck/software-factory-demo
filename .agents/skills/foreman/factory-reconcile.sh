@@ -37,6 +37,9 @@ while IFS=' ' read -r BEAD_ID GITHUB_NUM; do
   if [ "$GH_STATE" = "CLOSED" ]; then
     echo "  Closing $BEAD_ID (GitHub #$GITHUB_NUM is closed)"
     bd update "$BEAD_ID" --status=closed
+  elif [ -z "$GH_STATE" ]; then
+    echo "  Closing $BEAD_ID (GitHub #$GITHUB_NUM is deleted or inaccessible)"
+    bd update "$BEAD_ID" --status=closed
   fi
 done <<< "$ISSUE_IDS"
 

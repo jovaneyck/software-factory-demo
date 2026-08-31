@@ -4,6 +4,10 @@ Closes {{GITHUB_ISSUE_URL}}
 
 {{SUMMARY}}
 
+## Architecture Diff
+
+{{C4_DIFF}}
+
 ## Test Output
 
 ```

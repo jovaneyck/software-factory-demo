@@ -1,7 +1,7 @@
 {
     "tiers": {
-        "foreman": "anthropic/claude-opus-4-6",
-        "worker": "anthropic/claude-opus-4-6",
-        "reviewer": "openai/gpt-5.6-luna"
+        "foreman": "github-copilot/claude-opus-4.6",
+        "worker": "github-copilot/claude-opus-4.6",
+        "reviewer": "github-copilot/gpt-5.6-luna"
     }
 }
