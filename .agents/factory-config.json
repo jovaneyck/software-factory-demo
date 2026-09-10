@@ -1,7 +1,9 @@
 {
     "tiers": {
-        "foreman": "github-copilot/claude-opus-4.6",
-        "worker": "github-copilot/claude-opus-4.6",
-        "reviewer": "github-copilot/gpt-5.6-luna"
+        "foreman": "github-copilot/claude-opus-4.8",
+        "feature-owner": "github-copilot/claude-opus-4.8",
+        "worker": "github-copilot/claude-opus-4.8",
+        "reviewer": "github-copilot/gpt-5.6-luna",
+        "merger": "github-copilot/claude-opus-4.8"
     }
 }
