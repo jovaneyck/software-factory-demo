@@ -28,4 +28,10 @@ chmod 700 "$RUN_PI_DIR" 2>/dev/null || true
 cp "$SRC_AUTH" "$RUN_PI_DIR/auth.json"
 chmod 600 "$RUN_PI_DIR/auth.json" 2>/dev/null || true
 
+# Pre-trust the container's workspace so the worker never hits the interactive
+# "Trust project folder?" prompt. Inside the sandbox the worktree is always mounted
+# at /workspace, and $HOME/.pi/agent (this dir) is where pi reads trust.json.
+printf '{\n  "/workspace": true\n}\n' > "$RUN_PI_DIR/trust.json"
+chmod 600 "$RUN_PI_DIR/trust.json" 2>/dev/null || true
+
 echo "$RUN_PI_DIR/auth.json"

@@ -69,39 +69,33 @@ herdr pane run <worker-pane-id> ".\.agents\skills\feature-owner\sandbox\sandbox-
 
 > If `.sandbox.enabled` is `false` in `.agents/factory-config.json`, the launcher transparently runs `pi` on the host instead (migration/testing path). No change needed here. On non-Windows hosts, call `sandbox-run.sh` directly instead of the `.cmd` shim.
 
-Wait for the agent to become ready (herdr detects `pi` inside the container by scraping the pane buffer), then name it:
+Wait for `pi` to boot inside the container. **Important — sandboxed workers are driven by `pane` commands, not `agent` commands.** On Windows, herdr's process-based detection sees the `docker` wrapper, not `pi`, so it never classifies the worker as an agent (`herdr agent prompt/read/rename/wait` will NOT work on it). This is cosmetic — the worker still runs and is fully controllable via `pane run` / `pane wait-output` / `pane read` / `pane send-keys`, which work through the container. Use the **worker's pane id** as the handle everywhere (there is no `worker-{{ID}}` agent name).
+
+Wait for readiness by matching pi's startup banner in the pane buffer:
 
 ```bash
-for i in $(seq 1 45); do
-  sleep 2
-  STATUS=$(herdr pane list --workspace {{WORKSPACE_ID}} 2>&1)
-  echo "$STATUS" | grep -q '"agent":"pi"' && break
-done
-herdr agent rename <worker-pane-id> "worker-{{ID}}"
+herdr pane wait-output <worker-pane-id> --match "pi v" --timeout 120000
 ```
 
 > The container image must exist first (`software-factory-agent:latest`). The factory bootstrap builds it; if a spawn fails with "image not found", run `bash .agents/skills/feature-owner/sandbox/build-image.sh`.
 
 ## Step 2 — Prompt the worker
 
-Send a short prompt that tells the worker to read its instructions from the prompt file. Do **not** read the prompt file yourself — that pollutes your context. Pass only the placeholder values:
+Send a short prompt that tells the worker to read its instructions from the prompt file. Do **not** read the prompt file yourself — that pollutes your context. `pane run` types the text into pi's TUI and submits it:
 
 ```bash
-herdr agent prompt "worker-{{ID}}" "Read your full instructions from .agents/skills/feature-owner/prompts/worker-prompt.md and follow them. Replace the placeholders with these values:
-- {{ID}} = {{ID}}
-- {{TITLE}} = {{TITLE}}
-- {{DESCRIPTION}} = {{DESCRIPTION}}
-- {{DESIGN}} = {{DESIGN}}
-
-Start now." --wait --timeout 600000
+herdr pane run <worker-pane-id> "Read your full instructions from .agents/skills/feature-owner/prompts/worker-prompt.md and follow them. Replace the placeholders with these values: {{ID}} = {{ID}} | {{TITLE}} = {{TITLE}} | {{DESCRIPTION}} = {{DESCRIPTION}} | {{DESIGN}} = {{DESIGN}}. Start now."
 ```
+
+Then wait for the worker to reach a decision/handoff signal (see Step 3) with `pane wait-output`.
 
 ## Step 3 — Monitor the worker, then push + open the PR
 
-After `--wait` returns, read the worker's output:
+Block until the worker emits a factory signal, then read the surrounding output:
 
 ```bash
-herdr agent read "worker-{{ID}}" --source recent-unwrapped --lines 150
+herdr pane wait-output <worker-pane-id> --regex "FACTORY:(READY_TO_PUSH|NEEDS_CLARIFICATION|FRONTIER_CLEAR|BLOCKED)" --timeout 1800000
+herdr pane read <worker-pane-id> --source recent-unwrapped --lines 150
 ```
 
 Parse the output for the factory signals:
@@ -138,15 +132,15 @@ Parse the output for the factory signals:
      gh issue edit {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --add-label "status::needs_design" --remove-label "status::in_progress"
      ```
   4. Print `FACTORY:NEEDS_CLARIFICATION:{{ID}}` on its own line and notify:
-     > "⚠️ Issue {{ID}} needs clarification. Open questions posted to the GitHub issue. Attach to the worker's pane or run: `herdr agent focus worker-{{ID}}`"
+     > "⚠️ Issue {{ID}} needs clarification. Open questions posted to the GitHub issue. Attach to the worker's pane or run: `herdr pane focus <worker-pane-id>`"
 
-  After the user clarifies, wait for the worker to finish and commit, then look for `FACTORY:READY_TO_PUSH` and do the push + PR (as above):
+  After the user clarifies, wait for the worker to finish, then look for `FACTORY:READY_TO_PUSH` and do the commit + push + PR (as above):
   ```bash
-  herdr agent wait "worker-{{ID}}" --until idle --timeout 1800000
-  herdr agent read "worker-{{ID}}" --source recent-unwrapped --lines 150
+  herdr pane wait-output <worker-pane-id> --match "FACTORY:READY_TO_PUSH" --timeout 1800000
+  herdr pane read <worker-pane-id> --source recent-unwrapped --lines 150
   ```
 
-- **Neither signal found** — Read more output, check agent state with `herdr agent get "worker-{{ID}}"`. If blocked or errored, print `FACTORY:BLOCKED:{{ID}}` and report to the user.
+- **Neither signal found** — Read more output with `herdr pane read <worker-pane-id> --source recent-unwrapped --lines 200`. If the container has exited unexpectedly (`docker ps` shows no `factory-{{ID}}`), print `FACTORY:BLOCKED:{{ID}}` and report to the user.
 
 ## Step 4 — Review and fix loop (automatic, no human input)
 
@@ -203,9 +197,8 @@ Check only whether the reviewer found issues (keywords like "no issues", "LGTM" 
 **If issues found and ROUND < 3:** Tell the worker to fix (it edits files only — no git):
 
 ```bash
-herdr agent prompt "worker-{{ID}}" "The reviewer left feedback on PR #<pr-number> (review round ROUND). Here are the review comments (you have no gh access, so I'm pasting them):
-<paste the reviewer's findings here>
-Address ALL issues, then re-run tests and linter. Do NOT run git. Print FACTORY:FIXES_READY when done." --wait --timeout 600000
+herdr pane run <worker-pane-id> "The reviewer left feedback on PR #<pr-number> (review round ROUND). Here are the review comments (you have no gh access, so I'm pasting them): <paste the reviewer's findings here>. Address ALL issues, then re-run tests and linter. Do NOT run git. Print FACTORY:FIXES_READY when done."
+herdr pane wait-output <worker-pane-id> --match "FACTORY:FIXES_READY" --timeout 600000
 ```
 
 > The sandboxed worker has no `gh`, so it cannot run `gh pr view --comments`. **You** paste the reviewer's findings into the prompt.
@@ -321,6 +314,7 @@ Include in the human-readable part:
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{ID}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
+- **Drive the sandboxed worker with `pane` commands, not `agent` commands.** herdr can't classify a `pi` running behind the `docker` wrapper (Windows), so `herdr agent prompt/read/rename/wait` don't work on the worker. Use `pane run` (prompt), `pane wait-output --match/--regex` (await signals), `pane read` (output), `pane send-keys` (control keys), and the **worker pane id** as the handle. The host-side reviewer and merger classify normally — use `agent` commands for them.
 - **Reviewer/merger run host-side.** Reviewer skill: `--skill .agents/skills/pr-review`. Merger skill: `--skill .agents/skills/beads`.
 - **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
 - **Config reads use `node`, not `jq`** — via `sandbox/config-get.sh` (jq isn't reliably on the pane PATH).

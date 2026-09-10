@@ -91,6 +91,17 @@ echo "[sandbox] container=$CONTAINER_NAME cpus=$CPUS mem=$MEMORY pids=$PIDS" >&2
 # fall back to -i only to avoid "the input device is not a TTY".
 if [[ -t 0 ]]; then TTY_FLAG=(-it); else TTY_FLAG=(-i); fi
 
+# --- Herdr agent-kind hint (sandbox wrapper) --------------------------------
+# The pane's foreground process is `docker` (this wrapper), which hides `pi` from
+# herdr's process-based agent detection — herdr sees an agent UI but can't classify
+# the kind (shows agent_status "unknown"). Per herdr's "VMs and sandbox wrappers"
+# docs, set HERDR_AGENT=<kind> on the HOST wrapper process (not inside the
+# container) so herdr applies that agent's screen manifest to the pane buffer.
+# Hint the kind only when we're actually launching a known agent.
+case "${1:-}" in
+  pi|pidev) export HERDR_AGENT=pi ;;
+esac
+
 # --- Launch: foreground, auto-removed, TTY so herdr can scrape the buffer ----
 exec docker run --rm "${TTY_FLAG[@]}" \
   --name "$CONTAINER_NAME" \
