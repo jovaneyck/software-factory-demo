@@ -58,13 +58,16 @@ herdr pane split --pane {{OWN_PANE_ID}} --direction down --cwd {{WORKTREE_PATH}}
 
 Read the new pane id from `.result.pane.pane_id`. **Do not use `herdr agent start`** — on Windows, `pi` is a Node.js shell script and `agent start` uses `Start-Process` which cannot launch it. Use `pane run` + `agent rename`.
 
-The worker's `pi` runs **inside the Docker sandbox** via `sandbox-run.sh`. The pane's cwd is the worktree, which `sandbox-run.sh` bind-mounts at `/workspace`; skill paths stay relative and resolve inside the container. **Do not** pass the `beads` skill or any GitHub token — the worker has no GitHub authority.
+The worker's `pi` runs **inside the Docker sandbox**. The pane's cwd is the worktree, which the launcher bind-mounts at `/workspace`; skill paths stay relative and resolve inside the container. **Do not** pass the `beads` or `c4-diff` skills or any GitHub token — the worker has no git or GitHub authority (c4-diff needs git, which doesn't work in the sandbox; you run it host-side in Step 5).
+
+**Windows/herdr note:** herdr panes run PowerShell, where bare `bash` resolves to WSL bash (which cannot exec this repo's msys scripts). Launch via the **`.cmd` shim** with a `.\` prefix (PowerShell requires it for relative paths) — the shim locates Git Bash and forwards to `sandbox-run.sh`:
 
 ```bash
-herdr pane run <worker-pane-id> "bash .agents/skills/feature-owner/sandbox/sandbox-run.sh --run-id {{ID}} -- pi --model $WORKER_MODEL --session-id worker-${SESSION_SLUG} --name 'worker #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/grill-me --skill .agents/skills/c4-diff"
+herdr pane run <worker-pane-id> ".\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{ID}} -- pi --model $WORKER_MODEL --session-id worker-${SESSION_SLUG} --name 'worker #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/grill-me"
+```
 ```
 
-> If `.sandbox.enabled` is `false` in `.agents/factory-config.json`, `sandbox-run.sh` transparently runs `pi` on the host instead (migration/testing path). No change needed here.
+> If `.sandbox.enabled` is `false` in `.agents/factory-config.json`, the launcher transparently runs `pi` on the host instead (migration/testing path). No change needed here. On non-Windows hosts, call `sandbox-run.sh` directly instead of the `.cmd` shim.
 
 Wait for the agent to become ready (herdr detects `pi` inside the container by scraping the pane buffer), then name it:
 
@@ -224,20 +227,23 @@ Then increment `ROUND` and loop back to the **Review phase**.
 
 Still proceed to Step 5 so the work isn't lost, but note the unresolved state in your final report.
 
-## Step 5 — C4 Architecture Diff (after review loop converges)
+## Step 5 — C4 Architecture Diff (you run it host-side)
 
-Prompt the worker to generate the C4 diff and **commit** it. This runs last so the diagrams reflect the final code.
+The worker has no git, so **you** generate the C4 diff on the host after the review loop converges (so the diagrams reflect the final code). You have the `c4-diff` skill loaded.
 
 ```bash
-herdr agent prompt "worker-{{ID}}" "Generate a C4 architecture diff for the final state of your branch. Follow the c4-diff skill: use BASE=\$(git merge-base main HEAD) and HEAD=HEAD, output to ./artifacts/. git add + commit the artifacts. Print FACTORY:C4_DIFF_COMMITTED when done." --wait --timeout 300000
+cd {{WORKTREE_PATH}}
+BASE=$(git merge-base main HEAD)
+# Follow the c4-diff skill with BASE and HEAD=HEAD, output to ./artifacts/
 ```
 
-After `FACTORY:C4_DIFF_COMMITTED`, **you push and update the PR body** (worker has no gh):
+Then commit, push, and splice `artifacts/diff.component.md` into the PR body between the Summary and Test Output sections:
 
 ```bash
 export GITHUB_TOKEN=$(gh auth token)
+git -C {{WORKTREE_PATH}} add -f artifacts/
+git -C {{WORKTREE_PATH}} commit -m "docs: C4 architecture diff"
 git -C {{WORKTREE_PATH}} push origin HEAD
-# Insert artifacts/diff.component.md into the PR body between Summary and Test Output, then:
 gh pr edit <pr-number> --repo {{OWNER_REPO}} --body-file /tmp/pr-body.md
 ```
 
@@ -314,7 +320,7 @@ Include in the human-readable part:
 - **You are the only GitHub actor.** The worker is sandboxed with no `gh`/`bd`/token. Every `git push`, `gh pr create`, `gh` comment/label, and `bd` update/sync is done by **you** on the host in response to a worker `FACTORY:` signal.
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
-- **Worker runs sandboxed.** Always launch the worker's `pi` via `sandbox/sandbox-run.sh --run-id {{ID}} -- pi …`. Worker skills: `--skill .agents/skills/grill-me` and `--skill .agents/skills/c4-diff` only (no `beads`).
+- **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{ID}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
 - **Reviewer/merger run host-side.** Reviewer skill: `--skill .agents/skills/pr-review`. Merger skill: `--skill .agents/skills/beads`.
 - **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
 - **Config reads use `node`, not `jq`** — via `sandbox/config-get.sh` (jq isn't reliably on the pane PATH).
