@@ -5,5 +5,15 @@
         "worker": "github-copilot/claude-opus-4.8",
         "reviewer": "github-copilot/gpt-5.6-luna",
         "merger": "github-copilot/claude-opus-4.8"
+    },
+    "sandbox": {
+        "enabled": true,
+        "image": "software-factory-agent:latest",
+        "limits": {
+            "cpus": 2,
+            "memory": "4g",
+            "pids": 512
+        },
+        "network": "default"
     }
 }

@@ -85,6 +85,28 @@ else
   echo "    $WORKTREE_PARENT"
 fi
 
+# 8. Docker sandbox image (workers run sandboxed — see specs/decisions.md)
+SANDBOX_ENABLED=$(bash .agents/skills/feature-owner/sandbox/config-get.sh .agents/factory-config.json sandbox.enabled false)
+if [[ "$SANDBOX_ENABLED" == "true" ]]; then
+  if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
+    echo "[!] Sandbox is enabled but Docker is unavailable. Start Docker Desktop, then run:"
+    echo "    bash .agents/skills/feature-owner/sandbox/build-image.sh"
+  else
+    IMAGE=$(bash .agents/skills/feature-owner/sandbox/config-get.sh .agents/factory-config.json sandbox.image software-factory-agent:latest)
+    if docker image inspect "$IMAGE" >/dev/null 2>&1; then
+      echo "[✓] Sandbox image '$IMAGE' present"
+    else
+      echo "[+] Building sandbox image '$IMAGE' (first build pulls ~3GB Playwright base)..."
+      bash .agents/skills/feature-owner/sandbox/build-image.sh
+    fi
+    # Clean up any containers left by a previous crashed run
+    bash .agents/skills/feature-owner/sandbox/cleanup-orphans.sh --all >/dev/null 2>&1 || true
+    echo "[✓] Sandbox ready (stale containers cleaned)"
+  fi
+else
+  echo "[·] Sandbox disabled in factory-config.json — workers run on the host"
+fi
+
 echo ""
 echo "=== Bootstrap complete ==="
 echo ""

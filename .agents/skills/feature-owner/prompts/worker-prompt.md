@@ -6,6 +6,8 @@ You are working on beads issue `{{ID}}`: **{{TITLE}}**
 **Design notes (if any):**
 {{DESIGN}}
 
+> **You run inside a Docker sandbox.** You have `node`, `npm`, `ripgrep`, and Playwright + Chromium, but **no `gh`, no `bd`, no GitHub token, and no working git** — by design. Your git worktree's metadata lives on the host, outside your sandbox, so **do not run git commands** (they will fail). You implement, test, and screenshot; your file changes land on the host automatically (the worktree is bind-mounted). You hand off to the feature-owner with `FACTORY:` signals; it does **all** git and GitHub/beads work (commit, push, PR, diff).
+
 ## Your workflow
 
 ### Phase 1 — Grill-me (MANDATORY, do not skip)
@@ -27,18 +29,17 @@ You have the grill-me skill loaded. Use it now.
 
 ### Phase 2 — Decision
 
+> You run inside a sandbox with **no GitHub access** (`no gh`, `no bd`, no token). You never sync or write to beads. You communicate upward by printing `FACTORY:` signals; the feature-owner performs all GitHub/beads writes on your behalf.
+
 - **If ALL frontier questions are RESOLVED** (frontier is empty of OPEN questions):
   Print `FACTORY:FRONTIER_CLEAR`.
-  Sync status to GitHub: `export GITHUB_TOKEN=$(gh auth token) && bd github sync --push-only`
   Then proceed to Phase 3.
 
 - **If ANY frontier question is OPEN**:
-  Write the open questions to the beads issue: `bd update {{ID}} --notes="<numbered open questions with recommended answers>"`
+  Print the numbered open questions (with your recommended answers) to your output so the feature-owner can record them in beads and on GitHub.
   Print `FACTORY:NEEDS_CLARIFICATION` on its own line.
   Stop and wait — the user will attach to this pane for a grill-me session.
-  After clarification, write the agreed design to the issue: `bd update {{ID}} --design="<design>"`
-  Sync status to GitHub: `export GITHUB_TOKEN=$(gh auth token) && bd github sync --push-only`
-  Then proceed to Phase 3.
+  After clarification, print the agreed design to your output (the feature-owner records it), then proceed to Phase 3.
 
 ### Phase 3 — Implementation (only after Phase 1 and 2)
 
@@ -47,7 +48,7 @@ You have the grill-me skill loaded. Use it now.
 - Implement the solution
 - Fix any failures until tests and linter pass
 
-### Phase 4 — Proof of Work (MANDATORY before PR)
+### Phase 4 — Proof of Work (MANDATORY before hand-off)
 
 Collect evidence that the change works. This goes into the PR body.
 
@@ -64,8 +65,8 @@ Collect evidence that the change works. This goes into the PR body.
    cd app/frontend && BACKEND_PORT=$BACKEND_PORT npx vite --port $FRONTEND_PORT &
    cd ../..  # return to repo root
    # Wait for servers to be ready
-   sleep 5
-   # Take screenshot
+   sleep 8
+   # Take screenshot (you have Playwright + Chromium preinstalled in the sandbox)
    mkdir -p screenshots
    npx playwright screenshot --wait-for-timeout 3000 http://localhost:$FRONTEND_PORT/<relevant-path> screenshots/proof.png
    ```
@@ -77,33 +78,16 @@ Collect evidence that the change works. This goes into the PR body.
    - If the screenshot is wrong (wrong page, blank, error, or your change isn't visible): **do not proceed**. Debug the issue, retake the screenshot, and validate again. Repeat until you have genuine visual proof.
    - "Tests pass so it's fine" is **NOT acceptable** as a substitute for a correct screenshot. The screenshot exists to prove the UI works end-to-end in a real browser, which tests alone cannot prove.
 
-### Phase 5 — PR Submission
+### Phase 5 — Hand off (you do NOT touch git, push, or open the PR)
 
-Use the PR template at `.agents/skills/foreman/pr-template.md` to build the PR body. Follow these steps exactly:
+> You have no working git, no `gh`, and no GitHub token. Your edited/created files are already on the host via the bind mount. The feature-owner commits, pushes, and opens the PR. Your only job now is to write the PR body to a file and signal.
 
-1. Stage and commit implementation: `git add -A && git commit -m "feat(<scope>): <title>"`
-2. If screenshots were captured, commit them in the same branch:
-   ```bash
-   git add -f screenshots/ && git commit -m "docs: add proof-of-work screenshots"
-   ```
-3. Push the branch: `git push origin HEAD`
-4. Build the PR body by filling in the template placeholders:
+1. Build the PR body from the template at `.agents/skills/foreman/pr-template.md` and write it to `artifacts/pr-body.md` (create the `artifacts/` dir if needed). Fill the placeholders:
    - `{{GITHUB_ISSUE_URL}}` — the full GitHub issue URL
    - `{{SUMMARY}}` — one-line description of the change
    - `{{TEST_OUTPUT}}` — last 20 lines of `npm test` output
    - `{{LINT_OUTPUT}}` — lint output (or "Clean — no warnings or errors.")
-   - `{{SCREENSHOTS}}` — see below
-5. For the `{{SCREENSHOTS}}` section:
-   - If screenshots exist, get the commit SHA and build image links:
-     ```bash
-     SHA=$(git rev-parse HEAD)
-     # Use this markdown for each screenshot:
-     # ![description](https://github.com/<owner>/<repo>/blob/$SHA/screenshots/<filename>?raw=true)
-     ```
-   - If no frontend work, use "N/A — backend-only change."
-   - Use the commit SHA (not the branch name) in the URL to avoid slash-encoding issues.
-6. Create the PR:
-   ```bash
-   gh pr create --title "<title>" --body-file <(echo "<filled template>") --base main
-   ```
-7. Print `FACTORY:PR_CREATED:<pr-url>` on its own line
+   - `{{SCREENSHOTS}}` — if you captured screenshots, list each as a line `screenshots/<filename> — <caption>`. The feature-owner turns these into commit-pinned image links after it commits (you don't know the commit SHA — it doesn't exist yet). If no frontend work, write "N/A — backend-only change."
+2. Print `FACTORY:READY_TO_PUSH` on its own line. Stop. The feature-owner commits your files, pushes, and opens the PR.
+
+> **Review fixes:** when the feature-owner relays reviewer feedback, address it, re-run tests + linter, then print `FACTORY:FIXES_READY`. Do not commit or push.

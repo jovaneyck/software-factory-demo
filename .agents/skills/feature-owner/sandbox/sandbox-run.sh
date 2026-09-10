@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# sandbox-run.sh — launch a command (normally `pi …`) inside a per-run Docker
+# sandbox container, or directly on the host when sandboxing is disabled.
+#
+# This is the execution boundary for the worker (see specs/decisions.md). The
+# feature-owner runs this in the worker's herdr pane instead of running `pi`
+# directly. Herdr keeps controlling the agent via terminal-buffer scraping.
+#
+# The worktree (current directory, or --workspace) is bind-mounted at /workspace.
+# A run-local copy of the Copilot auth.json is mounted at /home/pwuser/.pi/agent.
+# NO GitHub credentials enter the container.
+#
+# Usage:
+#   sandbox-run.sh --run-id <id> [--workspace <path>] [--config <path>] -- <command> [args...]
+#
+# Example (what the feature-owner sends to the pane):
+#   sandbox-run.sh --run-id 5 -- pi --model <m> --session-id worker-5 --name 'worker' --skill ...
+
+set -euo pipefail
+# Docker Desktop on Windows + MSYS/Git Bash mangles absolute paths in arguments.
+# Disable MSYS path conversion; we translate paths explicitly below.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL='*'
+
+RUN_ID=""
+WORKSPACE="$PWD"
+CONFIG=".agents/factory-config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --run-id)    RUN_ID="$2"; shift 2 ;;
+    --workspace) WORKSPACE="$2"; shift 2 ;;
+    --config)    CONFIG="$2"; shift 2 ;;
+    --) shift; break ;;
+    *) echo "ERROR: unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
+
+if [[ -z "$RUN_ID" ]]; then echo "ERROR: --run-id is required" >&2; exit 2; fi
+if [[ $# -eq 0 ]]; then echo "ERROR: no command given after --" >&2; exit 2; fi
+
+# --- Load config (via node, not jq — see config-get.sh) ----------------------
+if [[ ! -f "$CONFIG" ]]; then echo "ERROR: config not found: $CONFIG" >&2; exit 2; fi
+cfg() { bash "$SCRIPT_DIR/config-get.sh" "$CONFIG" "$1" "$2"; }
+
+ENABLED=$(cfg sandbox.enabled false)
+IMAGE=$(cfg sandbox.image software-factory-agent:latest)
+CPUS=$(cfg sandbox.limits.cpus 2)
+MEMORY=$(cfg sandbox.limits.memory 4g)
+PIDS=$(cfg sandbox.limits.pids 512)
+NETWORK=$(cfg sandbox.network default)
+
+# --- Disabled path: run directly on the host (decision 9: "none") ------------
+if [[ "$ENABLED" != "true" ]]; then
+  echo "[sandbox] disabled — running on host: $*" >&2
+  exec "$@"
+fi
+
+# --- Prepare run-local Copilot auth ------------------------------------------
+DATA_DIR="${SOFTWARE_FACTORY_DATA_DIR:-$HOME/.software-factory}"
+RUN_PI_DIR="$DATA_DIR/runs/$RUN_ID/sandbox/pi"
+bash "$SCRIPT_DIR/prepare-pi-auth.sh" "$RUN_PI_DIR" >/dev/null
+
+# --- Translate host paths for Docker Desktop bind mounts ---------------------
+# Docker Desktop wants Windows-style paths (C:/Users/...). cygpath handles the
+# MSYS -> Windows conversion; fall back to the raw path on non-Windows.
+to_docker_path() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$1"
+  else
+    echo "$1"
+  fi
+}
+WORKSPACE_DOCKER=$(to_docker_path "$WORKSPACE")
+RUN_PI_DIR_DOCKER=$(to_docker_path "$RUN_PI_DIR")
+
+CONTAINER_NAME="factory-${RUN_ID}"
+
+# --- Network flag ------------------------------------------------------------
+NET_ARGS=()
+if [[ "$NETWORK" == "none" ]]; then
+  NET_ARGS=(--network none)
+fi
+
+echo "[sandbox] run=$RUN_ID image=$IMAGE workspace=$WORKSPACE_DOCKER net=$NETWORK" >&2
+echo "[sandbox] container=$CONTAINER_NAME cpus=$CPUS mem=$MEMORY pids=$PIDS" >&2
+
+# --- TTY: interactive agents (herdr panes) need -t so pi renders its TUI and herdr
+# can scrape the buffer. Headless contexts (CI, this test harness) have no TTY, so
+# fall back to -i only to avoid "the input device is not a TTY".
+if [[ -t 0 ]]; then TTY_FLAG=(-it); else TTY_FLAG=(-i); fi
+
+# --- Launch: foreground, auto-removed, TTY so herdr can scrape the buffer ----
+exec docker run --rm "${TTY_FLAG[@]}" \
+  --name "$CONTAINER_NAME" \
+  --label software-factory.sandbox=true \
+  --label "software-factory.run-id=$RUN_ID" \
+  --workdir /workspace \
+  --mount "type=bind,src=${WORKSPACE_DOCKER},dst=/workspace" \
+  --mount "type=bind,src=${RUN_PI_DIR_DOCKER},dst=/home/pwuser/.pi/agent" \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --pids-limit "$PIDS" \
+  --memory "$MEMORY" \
+  --cpus "$CPUS" \
+  --tmpfs /tmp:size=1g \
+  -e HOME=/home/pwuser \
+  "${NET_ARGS[@]}" \
+  "$IMAGE" \
+  "$@"

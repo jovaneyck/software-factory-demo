@@ -88,7 +88,7 @@ Derive a session slug from the GitHub issue number and title for traceability:
 # e.g. issue #5 "Add a dog age field" → "5-add-a-dog-age-field"
 SESSION_SLUG=$(echo "<github-issue-number>-<title>" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//' | cut -c1-60)
 
-herdr pane run <root-pane-id> "pi --model $FEATURE_OWNER_MODEL --session-id feature-owner-${SESSION_SLUG} --name 'feature-owner #<github-issue-number>: <title>' --skill .agents/skills/feature-owner --skill .agents/skills/herdr --skill .agents/skills/beads"
+herdr pane run <root-pane-id> "pi --model $FEATURE_OWNER_MODEL --session-id feature-owner-${SESSION_SLUG} --name 'feature-owner #<github-issue-number>: <title>' --skill .agents/skills/feature-owner --skill .agents/skills/herdr --skill .agents/skills/beads --skill .agents/skills/c4-diff"
 ```
 
 Wait for the agent to become ready, then name it:
@@ -147,7 +147,7 @@ Then loop back to Step 1 for the next issue.
 - **One worktree per issue.** Never reuse a worktree across issues.
 - **Conservative by default.** Do not merge PRs, do not push to main, do not close issues without confirmation.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
-- **Feature-owner skills.** Always pass `--skill .agents/skills/feature-owner`, `--skill .agents/skills/herdr`, and `--skill .agents/skills/beads` when spawning a feature-owner.
+- **Feature-owner skills.** Always pass `--skill .agents/skills/feature-owner`, `--skill .agents/skills/herdr`, `--skill .agents/skills/beads`, and `--skill .agents/skills/c4-diff` when spawning a feature-owner (it runs the C4 diff host-side).
 - **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
 - **Worktree cleanup.** After an issue is closed, suggest `herdr worktree remove` but don't run it without asking.
 - **Focus.** Always use `--no-focus` when spawning. The user stays in the foreman pane unless they choose to attach.
