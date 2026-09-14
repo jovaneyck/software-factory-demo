@@ -123,18 +123,41 @@ Parse the output for the factory signals:
      export GITHUB_TOKEN=$(gh auth token)
      bd update {{ID}} --notes="<numbered open questions with recommended answers from worker output>"
      ```
-  2. Post them as a GitHub comment for async human review:
+  2. Post them as a GitHub comment for async human review, and record the moment you asked so you only pick up **newer** replies:
      ```bash
-     gh issue comment {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --body "## 🎭 Design Questions (from worker)\n\n<paste the numbered open questions>"
+     ASKED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+     gh issue comment {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --body "## 🎭 Design Questions (from worker)\n\nPlease answer inline (quote each question or number your answers) in a reply comment on this issue — the feature-owner is polling and will relay your answers to the worker automatically.\n\n<paste the numbered open questions>"
      ```
   3. Label the issue:
      ```bash
      gh issue edit {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --add-label "status::needs_design" --remove-label "status::in_progress"
      ```
   4. Print `FACTORY:NEEDS_CLARIFICATION:{{ID}}` on its own line and notify:
-     > "⚠️ Issue {{ID}} needs clarification. Open questions posted to the GitHub issue. Attach to the worker's pane or run: `herdr pane focus <worker-pane-id>`"
+     > "⚠️ Issue {{ID}} needs clarification. Open questions posted to GitHub issue #{{GITHUB_ISSUE_NUMBER}}. Reply there and I'll relay your answers to the worker automatically — no need to attach to the worker pane. (To answer directly instead: `herdr pane focus <worker-pane-id>`.)"
 
-  After the user clarifies, wait for the worker to finish, then look for `FACTORY:READY_TO_PUSH` and do the commit + push + PR (as above):
+  5. **Poll the GitHub issue for the human's answer** instead of making the user drop into the worker pane. Look for any issue comment authored by a human (not the bot/author) created **after** `ASKED_AT`. Poll every 30s, up to ~1 hour:
+     ```bash
+     export GITHUB_TOKEN=$(gh auth token)
+     ME=$(gh api user --jq '.login')
+     ANSWER=""
+     for i in $(seq 1 120); do
+       # Newest human comment strictly newer than when we asked, not authored by us (the bot)
+       ANSWER=$(gh issue view {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} \
+         --json comments \
+         --jq "[.comments[] | select(.createdAt > \"$ASKED_AT\") | select(.author.login != \"$ME\") | .body] | last // empty")
+       [ -n "$ANSWER" ] && break
+       sleep 30
+     done
+     ```
+     - If an answer was found (`ANSWER` non-empty), **relay it to the worker** (the worker has no `gh`, so you paste it in), then wait for the worker to finish:
+       ```bash
+       herdr pane run <worker-pane-id> "The human answered your open design questions on the GitHub issue. Here are their answers (you have no gh access, so I'm pasting them verbatim):\n\n$ANSWER\n\nIncorporate these answers, continue implementation, and print FACTORY:READY_TO_PUSH when done (or FACTORY:NEEDS_CLARIFICATION again if anything is still ambiguous)."
+       gh issue edit {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --add-label "status::in_progress" --remove-label "status::needs_design"
+       ```
+       If the worker prints `FACTORY:NEEDS_CLARIFICATION` again, repeat this whole clarification sub-flow (re-post questions, reset `ASKED_AT`, poll again).
+     - If the poll times out with no answer, leave the `status::needs_design` label in place, print `FACTORY:NEEDS_CLARIFICATION:{{ID}}` again, and tell the user the questions are still waiting on the GitHub issue (they can answer there later, or attach to the worker pane).
+
+  After the answer is relayed and the worker finishes, look for `FACTORY:READY_TO_PUSH` and do the commit + push + PR (as above):
   ```bash
   herdr pane wait-output <worker-pane-id> --match "FACTORY:READY_TO_PUSH" --timeout 1800000
   herdr pane read <worker-pane-id> --source recent-unwrapped --lines 150
@@ -311,6 +334,7 @@ Include in the human-readable part:
 
 - **One issue only.** You own exactly one issue. Never touch the backlog or other issues.
 - **You are the only GitHub actor.** The worker is sandboxed with no `gh`/`bd`/token. Every `git push`, `gh pr create`, `gh` comment/label, and `bd` update/sync is done by **you** on the host in response to a worker `FACTORY:` signal.
+- **Clarifications come back via GitHub.** When the worker signals `FACTORY:NEEDS_CLARIFICATION`, post the questions to the GitHub issue and **poll the issue comments** for the human's answer (comments newer than when you asked, not authored by you), then relay that answer into the worker pane with `pane run`. The human should never have to attach to the worker pane to answer — that's a fallback, not the default.
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{ID}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
