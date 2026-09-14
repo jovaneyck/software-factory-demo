@@ -1,4 +1,4 @@
-Closes {{GITHUB_ISSUE_URL}}
+Closes https://github.com/jovaneyck/software-factory-demo/issues/20
 
 ## Summary
 
@@ -34,4 +34,4 @@ Clean — no warnings or errors (backend `eslint .` and frontend `eslint .` both
 
 ## Screenshots
 
-artifacts/screenshots/progress-export.png — Progress page with a dog selected, showing the new blue "Export CSV" button next to "Change dog".
+![Progress page with a dog selected, showing the new blue Export CSV button next to Change dog](https://github.com/jovaneyck/software-factory-demo/blob/e75d70cf4b6602d273ffd6b295b9e6c925ebbf3f/artifacts/screenshots/progress-export.png?raw=true)

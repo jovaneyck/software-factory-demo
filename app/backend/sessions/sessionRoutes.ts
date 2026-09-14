@@ -8,10 +8,6 @@ import type { Session } from '../shared/types.js';
 import { validateUuid } from '../shared/validateUuid.js';
 import { sessionsToCsv, csvFilename } from './sessionCsv.js';
 
-// Wide date bounds used to export a dog's full session history.
-const FULL_HISTORY_FROM = new Date('2000-01-01T00:00:00');
-const FULL_HISTORY_TO = new Date('2099-12-31T00:00:00');
-
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
@@ -78,15 +74,11 @@ export function sessionRoutes(
     const dog = dogs.getById(dogId);
     if (!dog) return res.status(404).json({ error: 'Dog not found' });
 
-    const result = service.list(dogId, FULL_HISTORY_FROM, FULL_HISTORY_TO);
-    if ('error' in result) {
-      return res.status(404).json({ error: result.error });
-    }
-
-    // Only export sessions with recorded progress (completed or skipped).
-    const recorded = (result.sessions as unknown as Session[]).filter(
-      (s) => s.status === 'completed' || s.status === 'skipped',
-    );
+    // Export the dog's full persisted history — only sessions with recorded
+    // progress (completed or skipped) are persisted, so no date bounds apply.
+    const recorded = sessions
+      .getByDogId(dogId)
+      .filter((s) => s.status === 'completed' || s.status === 'skipped');
 
     const csv = sessionsToCsv(recorded, trainings.getAll());
     const filename = csvFilename(dog.name, recorded);

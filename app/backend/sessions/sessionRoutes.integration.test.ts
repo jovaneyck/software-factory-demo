@@ -493,6 +493,36 @@ describe('Sessions API', () => {
       const res = await request(app).get('/api/dogs/not-a-uuid/sessions/export');
       expect(res.status).toBe(400);
     });
+
+    it('includes sessions dated outside the 2000-2099 range in the export', async () => {
+      trainings.save({ id: trainingId, name: 'Sit', procedure: '', tips: '' });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '1999-12-31',
+        status: 'completed',
+        score: 6,
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2100-01-01',
+        status: 'skipped',
+      });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export`);
+
+      expect(res.status).toBe(200);
+      const lines = res.text.split('\r\n');
+      expect(lines).toHaveLength(3); // header + 2 out-of-range sessions
+      expect(lines[1]).toBe('1999-12-31,Sit,completed,6,');
+      expect(lines[2]).toBe('2100-01-01,Sit,skipped,,');
+      expect(res.headers['content-disposition']).toContain(
+        'buddy-progress-1999-12-31-to-2100-01-01.csv',
+      );
+    });
   });
 
   describe('DELETE /api/dogs/:dogId/sessions/:id', () => {
