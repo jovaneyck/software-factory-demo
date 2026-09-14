@@ -54,7 +54,13 @@ Collect evidence that the change works. This goes into the PR body.
 
 1. **Tests**: Run `npm test` from the `app/` directory. Capture the full output (last 20 lines are enough for the PR).
 2. **Linter**: Run `npm run lint` from the `app/` directory. Capture the full output.
-3. **Screenshot** (if frontend files were changed): Pick random available ports to avoid collisions with other workers:
+3. **Screenshots** (if frontend files were changed): Capture **every** screen your change touches, not just one. Before capturing, enumerate all impacted routes/screens:
+   - The screen you directly edited (e.g. the page with the new button/field).
+   - **Every other screen affected by the change.** If you added navigation to a new or existing screen (a button/link that opens another page, a new route, a modal, a redirect target), that destination screen is impacted too — screenshot it as well. Example: adding a button on the dog detail page that links to a new screen requires **two** screenshots — the detail page (showing the new button) **and** the new screen it links to.
+   - Any screen whose layout/appearance shifts as a side effect of your change.
+   Produce one screenshot per impacted screen (a single screenshot is only acceptable when exactly one screen is impacted).
+
+   Pick random available ports to avoid collisions with other workers:
    ```bash
    # Pick random ports in the 3100-3999 and 5200-5999 ranges
    BACKEND_PORT=$((3100 + RANDOM % 900))
@@ -66,18 +72,21 @@ Collect evidence that the change works. This goes into the PR body.
    cd ../..  # return to repo root
    # Wait for servers to be ready
    sleep 8
-   # Take screenshot (you have Playwright + Chromium preinstalled in the sandbox)
+   # Take a screenshot of EACH impacted screen (you have Playwright + Chromium preinstalled in the sandbox)
    # Save under artifacts/screenshots/ — this dir IS committed (it's not gitignored, unlike repo-root /screenshots/).
    mkdir -p artifacts/screenshots
-   npx playwright screenshot --wait-for-timeout 3000 http://localhost:$FRONTEND_PORT/<relevant-path> artifacts/screenshots/proof.png
+   # One command per impacted screen, each with its own descriptive filename:
+   npx playwright screenshot --wait-for-timeout 3000 http://localhost:$FRONTEND_PORT/<path-to-edited-screen> artifacts/screenshots/dog-detail.png
+   npx playwright screenshot --wait-for-timeout 3000 http://localhost:$FRONTEND_PORT/<path-to-linked-screen> artifacts/screenshots/new-screen.png
    ```
    Save every screenshot under `artifacts/screenshots/` from the **repo root** (give each a descriptive name, e.g. `artifacts/screenshots/dog-delete.png`). Do **not** use a bare `screenshots/` dir (repo-root `/screenshots/` is gitignored) and do **not** `cd` into `app/` first (that would put them at `app/screenshots/`, off the expected path).
    Stop the dev servers after capturing (kill the background jobs).
 
-   **Screenshot validation (MANDATORY):** After capturing, read the screenshot and verify:
-   - The screenshot shows the **specific page/component you changed**, not a generic landing page or error screen.
-   - Your new UI element (button, field, export link, etc.) is **visibly present** in the screenshot.
-   - If the screenshot is wrong (wrong page, blank, error, or your change isn't visible): **do not proceed**. Debug the issue, retake the screenshot, and validate again. Repeat until you have genuine visual proof.
+   **Screenshot validation (MANDATORY):** After capturing, read **each** screenshot and verify:
+   - You have **one screenshot per impacted screen** — if your change navigates to or affects another screen, that screen must have its own screenshot too. A single screenshot when multiple screens are impacted is **incomplete** — do not proceed.
+   - Each screenshot shows the **specific page/component** it is meant to prove, not a generic landing page or error screen.
+   - Your new UI element (button, field, export link, etc.) is **visibly present** in the screenshot of the screen it belongs to, and any linked/new destination screen is captured and renders correctly.
+   - If any screenshot is wrong (wrong page, blank, error, missing screen, or your change isn't visible): **do not proceed**. Debug the issue, retake the screenshot(s), and validate again. Repeat until you have genuine visual proof of **every** impacted screen.
    - "Tests pass so it's fine" is **NOT acceptable** as a substitute for a correct screenshot. The screenshot exists to prove the UI works end-to-end in a real browser, which tests alone cannot prove.
 
 ### Phase 5 — Hand off (you do NOT touch git, push, or open the PR)
@@ -89,7 +98,7 @@ Collect evidence that the change works. This goes into the PR body.
    - `{{SUMMARY}}` — one-line description of the change
    - `{{TEST_OUTPUT}}` — last 20 lines of `npm test` output
    - `{{LINT_OUTPUT}}` — lint output (or "Clean — no warnings or errors.")
-   - `{{SCREENSHOTS}}` — if you captured screenshots, list each as a line `artifacts/screenshots/<filename> — <caption>` (use the real path under `artifacts/screenshots/`). The feature-owner turns these into commit-pinned image links after it commits (you don't know the commit SHA — it doesn't exist yet). If no frontend work, write "N/A — backend-only change."
+   - `{{SCREENSHOTS}}` — if you captured screenshots, list **every** one (one line per impacted screen) as `artifacts/screenshots/<filename> — <caption>` (use the real path under `artifacts/screenshots/`). When a change spans multiple screens (e.g. a new button plus the screen it links to), list all of them. The feature-owner turns these into commit-pinned image links after it commits (you don't know the commit SHA — it doesn't exist yet). If no frontend work, write "N/A — backend-only change."
 2. Print `FACTORY:READY_TO_PUSH` on its own line. Stop. The feature-owner commits your files, pushes, and opens the PR.
 
 > **Review fixes:** when the feature-owner relays reviewer feedback, address it, re-run tests + linter, then print `FACTORY:FIXES_READY`. Do not commit or push.

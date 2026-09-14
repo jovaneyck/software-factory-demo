@@ -8,3 +8,4 @@ In addition to the skill's checklist, also confirm:
 - Correctness
 - Test coverage
 - Adherence to existing codebase patterns
+- **Screenshot proof completeness (frontend changes):** if the change affects the UI, verify the PR body includes a screenshot for **every** impacted screen, not just one. If the change adds navigation to another screen (a new button/link opening a new or existing page, a new route, a modal, a redirect), both the originating screen **and** the destination screen must have screenshots. Flag any impacted screen that is missing visual proof.
