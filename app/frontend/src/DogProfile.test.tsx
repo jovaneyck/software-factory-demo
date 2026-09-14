@@ -61,6 +61,37 @@ describe('DogProfile', () => {
     expect(screen.getByRole('img')).toHaveAttribute('src', '/uploads/dogs/buddy.jpg');
   });
 
+  it('renders a CSV export link pointing at the sessions export endpoint', async () => {
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      if (url === `/api/dogs/${DOG_ID}`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (url === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (url === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.reject(new Error('Unknown URL'));
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    const exportLink = screen.getByRole('link', { name: /export csv/i });
+    expect(exportLink).toHaveAttribute('href', `/api/dogs/${DOG_ID}/sessions.csv`);
+  });
+
   it('shows not found for non-existent dog', async () => {
     vi.spyOn(global, 'fetch').mockImplementation((url) => {
       if (String(url).includes('/api/dogs/')) {
