@@ -11,10 +11,16 @@
 # at /home/pwuser/.pi/agent. NO GitHub credentials enter the container.
 #
 # Usage:
-#   sandbox-run.sh --run-id <id> [--workspace <path>] [--config <path>] -- <command> [args...]
+#   sandbox-run.sh --run-id <id> [--workspace <path>] [--config <path>] [--tier <name>] -- <command> [args...]
 #
 # Example (what the feature-owner sends to the pane):
-#   sandbox-run.sh --run-id 5 -- pi --model <m> --session-id worker-5 --name 'worker' --skill ...
+#   sandbox-run.sh --run-id 5 --tier worker -- pi --session-id worker-5 --name 'worker' --skill ...
+#
+# --tier <name> resolves tiers.<name> from the factory config and injects
+# `--model <resolved>` into the pi command automatically. This is the ROBUST way
+# to set the worker model: the caller (a possibly-weak feature-owner model) never
+# has to read/interpolate the model string itself, so it can't spawn the worker on
+# the wrong tier (e.g. copying the foreman's opus line out of the config dump).
 
 set -euo pipefail
 # Docker Desktop on Windows + MSYS/Git Bash mangles absolute paths in arguments.
@@ -25,6 +31,7 @@ export MSYS2_ARG_CONV_EXCL='*'
 RUN_ID=""
 WORKSPACE="$PWD"
 CONFIG=".agents/factory-config.json"
+TIER=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
@@ -32,6 +39,7 @@ while [[ $# -gt 0 ]]; do
     --run-id)    RUN_ID="$2"; shift 2 ;;
     --workspace) WORKSPACE="$2"; shift 2 ;;
     --config)    CONFIG="$2"; shift 2 ;;
+    --tier)      TIER="$2"; shift 2 ;;
     --) shift; break ;;
     *) echo "ERROR: unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -60,6 +68,29 @@ NETWORK=$(cfg sandbox.network default)
 NM_CACHE_ENABLED=$(cfg sandbox.nodeModulesCache.enabled false)
 NM_CACHE_SIZE=$(cfg sandbox.nodeModulesCache.tmpfsSize 1g)
 NM_CACHE_PATHS=$(cfg sandbox.nodeModulesCache.paths "")
+
+# --- Resolve --tier into an injected --model ---------------------------------
+# When --tier <name> is given, resolve tiers.<name> from the config and splice
+# `--model <resolved>` in right after the launched program (the first arg after
+# `--`, normally `pi`). This makes the sandbox launcher the single source of
+# truth for the worker's model, so a weak feature-owner can't hardcode the wrong
+# one. If the caller ALSO passed --model, we leave theirs alone (explicit wins).
+if [[ -n "$TIER" ]]; then
+  TIER_MODEL=$(cfg "tiers.$TIER" "")
+  if [[ -z "$TIER_MODEL" ]]; then
+    echo "ERROR: --tier '$TIER' not found in $CONFIG (tiers.$TIER)" >&2; exit 2
+  fi
+  # Does the command already specify --model? If so, respect it.
+  HAS_MODEL=0
+  for a in "$@"; do [[ "$a" == "--model" ]] && HAS_MODEL=1 && break; done
+  if [[ "$HAS_MODEL" -eq 0 ]]; then
+    PROG="$1"; shift
+    set -- "$PROG" --model "$TIER_MODEL" "$@"
+    echo "[sandbox] tier=$TIER -> --model $TIER_MODEL" >&2
+  else
+    echo "[sandbox] tier=$TIER ignored (command already has --model)" >&2
+  fi
+fi
 
 # --- Disabled path: run directly on the host (decision 9: "none") ------------
 if [[ "$ENABLED" != "true" ]]; then

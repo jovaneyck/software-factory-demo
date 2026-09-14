@@ -32,11 +32,10 @@ The foreman spawns you with these values (passed in your kickoff prompt):
 - `{{OWN_PANE_ID}}` — your own pane id (root pane of the worktree workspace)
 - `{{WORKSPACE_ID}}` — the worktree workspace id
 
-Load the intelligence tier config for the models you will spawn (read via `node`, since `jq` is not reliably on the pane's PATH — use the sandbox `config-get.sh` helper):
+Load the intelligence tier config for the models you will spawn (read via `node`, since `jq` is not reliably on the pane's PATH — use the sandbox `config-get.sh` helper). **The worker's model is NOT set here** — the sandbox launcher resolves it from `tiers.worker` via `--tier worker` (Step 1), so a wrong model can't be hardcoded. You only need the reviewer/merger models, which you spawn on the host:
 
 ```bash
 CFG=.agents/skills/feature-owner/sandbox/config-get.sh
-WORKER_MODEL=$(bash $CFG .agents/factory-config.json tiers.worker)
 REVIEWER_MODEL=$(bash $CFG .agents/factory-config.json tiers.reviewer)
 MERGER_MODEL=$(bash $CFG .agents/factory-config.json tiers.merger)
 ```
@@ -73,8 +72,10 @@ The worker's `pi` runs **inside the Docker sandbox**. The pane's cwd is the work
 **Windows/herdr note:** herdr panes run PowerShell, where bare `bash` resolves to WSL bash (which cannot exec this repo's msys scripts). Launch via the **`.cmd` shim** with a `.\` prefix (PowerShell requires it for relative paths) — the shim locates Git Bash and forwards to `sandbox-run.sh`:
 
 ```bash
-herdr pane run <worker-pane-id> ".\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{GITHUB_ISSUE_NUMBER}} -- pi --model $WORKER_MODEL --session-id worker-${SESSION_SLUG} --name 'worker #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/grill-me"
+herdr pane run <worker-pane-id> ".\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{GITHUB_ISSUE_NUMBER}} --tier worker -- pi --session-id worker-${SESSION_SLUG} --name 'worker #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/grill-me"
 ```
+
+> **Model comes from `--tier worker` — do NOT add `--model` yourself.** The launcher resolves `tiers.worker` from `.agents/factory-config.json` and injects `--model` for you. This is deliberate: it removes any chance of spawning the worker on the wrong model by hand-copying a string out of the config. Never read the worker model or write `--model …` in this command.
 ```
 
 > If `.sandbox.enabled` is `false` in `.agents/factory-config.json`, the launcher transparently runs `pi` on the host instead (migration/testing path). No change needed here. On non-Windows hosts, call `sandbox-run.sh` directly instead of the `.cmd` shim.
