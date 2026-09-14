@@ -31,7 +31,7 @@ RUN apt-get update \
 # unprivileged agent identity. HOME must be a real, writable directory because pi
 # stores state under $HOME/.pi.
 ENV HOME=/home/pwuser
-ENV PI_VERSION=0.84.4
+ENV PI_VERSION=0.85.1
 
 # Install the agent runtime globally. Pin to the repo's pi version (see decisions.md).
 RUN npm install -g @earendil-works/pi-coding-agent@${PI_VERSION} \
