@@ -12,8 +12,9 @@ dog profile page (`/dogs/:id`) gains an **Export CSV** link that downloads it.
 - **Backend**: `SessionCsvExporter` looks up the dog, joins training IDs to names, filters to
   recorded sessions (`completed`/`skipped`), and emits `Date,Training,Status,Score,Notes`.
   Rows sort by date then training name; fields containing commas/quotes/newlines are quoted and
-  escaped; a UTF-8 BOM plus CRLF line endings keep Excel happy. Filename is slugified from the
-  dog name (e.g. `django-sessions.csv`).
+  escaped; cells starting with a formula trigger (`=`, `+`, `-`, `@`, tab, CR) are prefixed with
+  a single quote to prevent CSV formula injection (CWE-1236); a UTF-8 BOM plus CRLF line endings
+  keep Excel happy. Filename is slugified from the dog name (e.g. `django-sessions.csv`).
 - **Route**: added to `sessionRoutes` and wired in `createApp`. Returns `404` for unknown dogs
   and `400` for invalid UUIDs (existing `validateUuid` middleware).
 - **Frontend**: `DogProfile` renders the export link next to the dog name, always available
@@ -25,11 +26,11 @@ dog profile page (`/dogs/:id`) gains an **Export CSV** link that downloads it.
 > dogtrainr-backend@1.0.0 test
 > vitest run
 
- ✓ sessions/sessionRoutes.integration.test.ts  (36 tests) 552ms
- ✓ sessions/SessionCsvExporter.test.ts  (7 tests) 12ms
+ ✓ sessions/sessionRoutes.integration.test.ts  (37 tests) 430ms
+ ✓ sessions/SessionCsvExporter.test.ts  (10 tests) 10ms
  Test Files  12 passed (12)
-      Tests  132 passed (132)
-   Duration  9.84s
+      Tests  136 passed (136)
+   Duration  ~10s
 
 > frontend@0.0.0 test
 > vitest run

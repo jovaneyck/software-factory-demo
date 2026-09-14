@@ -111,6 +111,56 @@ describe('SessionCsvExporter', () => {
     expect(lines[1]).toBe('2026-02-10,Sit,completed,7,"Great, he said ""woof""\nthen sat"');
   });
 
+  it('neutralises formula injection in text fields', () => {
+    const maliciousTrainingId = crypto.randomUUID();
+    trainings.save({
+      id: maliciousTrainingId,
+      name: '=SUM(A1:A2)',
+      procedure: '',
+      tips: '',
+    });
+    sessions.save({
+      id: crypto.randomUUID(),
+      dogId,
+      trainingId: maliciousTrainingId,
+      date: '2026-02-10',
+      status: 'completed',
+      score: 5,
+      notes: '@cmd',
+    });
+
+    const lines = rows(exporter.export(dogId, from, to));
+    expect(lines[1]).toBe("2026-02-10,'=SUM(A1:A2),completed,5,'@cmd");
+  });
+
+  it('neutralises and quotes a formula-like value that also contains a comma', () => {
+    sessions.save({
+      id: crypto.randomUUID(),
+      dogId,
+      trainingId,
+      date: '2026-02-10',
+      status: 'completed',
+      score: 5,
+      notes: '=cmd("x"),y',
+    });
+
+    const lines = rows(exporter.export(dogId, from, to));
+    expect(lines[1]).toBe('2026-02-10,Sit,completed,5,"\'=cmd(""x""),y"');
+  });
+
+  it('does not alter score values', () => {
+    sessions.save({
+      id: crypto.randomUUID(),
+      dogId,
+      trainingId,
+      date: '2026-02-10',
+      status: 'completed',
+      score: 7,
+    });
+    const lines = rows(exporter.export(dogId, from, to));
+    expect(lines[1]).toBe('2026-02-10,Sit,completed,7,');
+  });
+
   it('falls back to the training id when the training is unknown', () => {
     const unknownTrainingId = crypto.randomUUID();
     sessions.save({

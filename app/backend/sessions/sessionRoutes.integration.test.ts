@@ -512,6 +512,29 @@ describe('Sessions API', () => {
       expect(res.status).toBe(400);
     });
 
+    it('neutralises formula injection when opened in a spreadsheet', async () => {
+      const maliciousTrainingId = crypto.randomUUID();
+      trainings.save({
+        id: maliciousTrainingId,
+        name: '=HYPERLINK("http://evil")',
+        procedure: '',
+        tips: '',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId: maliciousTrainingId,
+        date: '2026-02-10',
+        status: 'completed',
+        notes: '@SUM(1+1)',
+      });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions.csv`);
+
+      expect(res.text).toContain(`'=HYPERLINK(""http://evil"")`);
+      expect(res.text).toContain("'@SUM(1+1)");
+    });
+
     it('does not include sessions belonging to another dog', async () => {
       const dog2Id = crypto.randomUUID();
       dogs.save({ id: dog2Id, name: 'Rex', picture: 'rex.jpg' });

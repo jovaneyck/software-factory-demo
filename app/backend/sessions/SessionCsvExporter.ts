@@ -6,13 +6,21 @@ export type CsvExportResult = { filename: string; csv: string } | { error: strin
 
 const COLUMNS = ['Date', 'Training', 'Status', 'Score', 'Notes'];
 
+// Characters that make a spreadsheet interpret a cell as a formula.
+const FORMULA_TRIGGERS = ['=', '+', '-', '@', '\t', '\r'];
+
 /**
  * RFC 4180 field escaping: wrap in double quotes when the value contains a
- * comma, quote, CR or LF, and double any embedded quotes.
+ * comma, quote, CR or LF, and double any embedded quotes. Cells that begin
+ * with a formula trigger are prefixed with a single quote to prevent CSV
+ * formula injection (CWE-1236) when opened in Excel/LibreOffice/Sheets.
  */
 function escapeCsvValue(value: string | number | undefined | null): string {
   if (value === undefined || value === null) return '';
-  const str = String(value);
+  let str = String(value);
+  if (str.length > 0 && FORMULA_TRIGGERS.includes(str[0])) {
+    str = `'${str}`;
+  }
   if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }
