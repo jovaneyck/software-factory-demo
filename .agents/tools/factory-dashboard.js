@@ -112,6 +112,31 @@ function latestSignal(paneId) {
   return last;
 }
 
+// ---- per-pane cost scrape -------------------------------------------------
+// Each live agent renders a status line with its running spend, e.g.
+//   "↑46 ↓6.4k R291k W45k CH98.8% $0.586 (sub) 2.4%/1.0M (auto)".
+// Same source factory-cost-report.sh uses. Read the last few visible lines
+// (the status bar sits at the bottom) and take the last $-amount found.
+function paneCost(paneId) {
+  const out = sh(`herdr pane read ${paneId} --source visible --lines 4`);
+  let cost = null, m;
+  const re = /\$([0-9]+\.[0-9]+)/g;
+  for (const line of out.split(/\r?\n/)) {
+    while ((m = re.exec(line)) !== null) cost = Number(m[1]);
+  }
+  return cost; // null if none seen
+}
+// Aggregate spend across every live pane for an issue (owner + worker + reviewer + merger).
+function issueCost(live) {
+  if (!live) return null;
+  let total = null;
+  for (const role of Object.keys(live.roles)) {
+    const c = paneCost(live.roles[role].paneId);
+    if (c != null) total = (total || 0) + c;
+  }
+  return total;
+}
+
 // ---- stage derivation ladder ---------------------------------------------
 function deriveStage(bd, live, signal) {
   if (signal) {
@@ -191,6 +216,7 @@ function build() {
       priority: bd ? bd.priority : null,
       stage: deriveStage(bd, live, signal),
       agents: agentsCell(live),
+      cost: issueCost(live),
       pr: bd && bd.url ? bd.url.replace(/^https:\/\/github.com\//, "") : "—",
       live: !!live,
       _sort: (bd ? bd.priority ?? 9 : 9),
@@ -207,23 +233,28 @@ function trunc(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 function render(rows) {
   if (OPT.json) { console.log(JSON.stringify(rows.map(({ _sort, ...r }) => ({ ...r, stage: stripAnsi(r.stage), agents: stripAnsi(r.agents) })), null, 2)); return; }
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const fmtCost = (c) => c == null ? dim("—") : grn("$" + c.toFixed(3));
   console.log(bold("🏭 Factory WIP") + dim(`   ${now}   ${OPT.signals ? "signals:on" : "signals:off"}   ● working  ○ idle  ✓ done  · none`));
-  console.log(dim("─".repeat(100)));
-  console.log(bold(pad("ISSUE", 7) + pad("P", 3) + pad("TITLE", 32) + pad("STAGE", 20) + pad("AGENTS", 32) + "PR/LINK"));
+  console.log(dim("─".repeat(110)));
+  console.log(bold(pad("ISSUE", 7) + pad("P", 3) + pad("TITLE", 32) + pad("STAGE", 20) + pad("AGENTS", 32) + pad("COST", 10) + "PR/LINK"));
   if (!rows.length) { console.log(dim("  (no work in progress)")); return; }
+  let liveCostTotal = null;
   for (const r of rows) {
+    if (r.cost != null) liveCostTotal = (liveCostTotal || 0) + r.cost;
     console.log(
       pad("#" + r.issue, 7) +
       pad(r.priority != null ? String(r.priority) : "-", 3) +
       pad(trunc(r.title, 31), 32) +
       pad(r.stage, 20) +
       pad(r.agents, 32) +
+      pad(fmtCost(r.cost), 10) +
       (r.pr === "—" ? dim("—") : dim(r.pr))
     );
   }
-  console.log(dim("─".repeat(100)));
+  console.log(dim("─".repeat(110)));
   const liveN = rows.filter((r) => r.live).length;
-  console.log(dim(`  ${rows.length} WIP · ${liveN} live in herdr`));
+  const costSummary = liveCostTotal != null ? ` · ${grn("$" + liveCostTotal.toFixed(3))} live spend` : "";
+  console.log(dim(`  ${rows.length} WIP · ${liveN} live in herdr`) + costSummary);
 }
 
 render(build());
