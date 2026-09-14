@@ -189,6 +189,23 @@ Once a PR exists, spawn a reviewer. The reviewer is **not sandboxed** — it onl
 
 **Safety limit:** Maximum **3 review rounds.** If the reviewer still finds issues after 3 rounds, stop and escalate.
 
+### 4a-prep — Regenerate host-side dependency shims (Windows sandbox/host mismatch)
+
+The worker installed dependencies **inside the Linux Docker sandbox**, so `node_modules/.bin/` contains only Unix symlinks (e.g. `vitest -> ../vitest/vitest.mjs`) — **no `.cmd`/`.ps1` shims**. The reviewer runs **host-side on Windows**, where `npm test`/`npm run build` shell out via `cmd.exe`, which can only launch `*.cmd` shims. Without this step the reviewer hits `'vitest' is not recognized` and cannot actually run tests/build (it would review blind).
+
+Run a host-side `npm install` in each JS package the reviewer will test, **before** spawning the reviewer. This regenerates the Windows shims against the already-present packages (fast — nothing new to download):
+
+```bash
+# For each package with a package.json + tests (e.g. app/frontend). Adjust paths to the repo.
+for pkg in app/frontend; do
+  if [ -f "{{WORKTREE_PATH}}/$pkg/package.json" ]; then
+    (cd "{{WORKTREE_PATH}}/$pkg" && npm install --no-audit --no-fund) || echo "WARN: npm install failed in $pkg"
+  fi
+done
+```
+
+> This only rewrites `.bin` shims; it does not touch source. If the repo has no JS packages, skip this step. On non-Windows hosts it's a harmless no-op (the Unix symlinks already work).
+
 ### 4a — Spawn the reviewer (once, host-side, not sandboxed)
 
 ```bash
@@ -358,6 +375,7 @@ Include in the human-readable part:
 - **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{ID}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
 - **Drive the sandboxed worker with `pane` commands, not `agent` commands.** herdr can't classify a `pi` running behind the `docker` wrapper (Windows), so `herdr agent prompt/read/rename/wait` don't work on the worker. Use `pane run` (prompt), `pane wait-output --match/--regex` (await signals), `pane read` (output), `pane send-keys` (control keys), and the **worker pane id** as the handle. The host-side reviewer and merger classify normally — use `agent` commands for them.
 - **Reviewer/merger run host-side.** Reviewer skill: `--skill .agents/skills/pr-review`. Merger skill: `--skill .agents/skills/beads`.
+- **Regenerate host-side dependency shims before reviewing (Step 4a-prep).** The worker installs deps inside the Linux sandbox, producing only Unix `.bin` symlinks; the Windows host reviewer needs `.cmd`/`.ps1` shims to run `npm test`/`npm run build`. Always run a host-side `npm install` in each JS package before spawning the reviewer, or the reviewer reviews blind (`'vitest' is not recognized`).
 - **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
 - **Config reads use `node`, not `jq`** — via `sandbox/config-get.sh` (jq isn't reliably on the pane PATH).
 - **Focus.** Always use `--no-focus` when spawning subagents.
