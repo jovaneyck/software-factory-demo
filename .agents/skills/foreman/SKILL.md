@@ -1,6 +1,6 @@
 ---
 name: foreman
-description: "Orchestrate the software factory: sync GitHub issues, triage the backlog, and dispatch each ready issue to a feature-owner agent in its own worktree. Use when the user asks to run the factory, process the backlog, or dispatch work."
+description: "Orchestrate the software factory: sync GitHub issues, triage the backlog, and dispatch each ready issue to a feature-owner agent in its own worktree."
 ---
 
 # Foreman — Software Factory Orchestrator
@@ -11,23 +11,7 @@ You do **not** spawn workers or reviewers yourself, run review loops, or generat
 
 ## Prerequisites
 
-Run the bootstrap script once after cloning:
-
-```bash
-bash .agents/skills/foreman/factory-bootstrap.sh
-```
-
-This configures beads custom statuses, creates GitHub labels, sets up the GitHub integration, and prints trust instructions for worktree panes.
-
-Before each factory run, verify:
-
-```bash
-test "${HERDR_ENV:-}" = 1   # Must be inside Herdr
-export GITHUB_TOKEN=$(gh auth token)
-bd github status            # Must show ✓ Configured
-```
-
-If any check fails, stop and tell the user what's missing.
+Starting the factory (bootstrap, environment checks, spawning this foreman, and optional continuous-mode polling) is covered by the **`.agents/skills/start-factory`** skill. Follow that skill to launch the foreman; this skill assumes the foreman is already running with prerequisites satisfied (inside Herdr, `GITHUB_TOKEN` set, `bd github status` shows ✓ Configured).
 
 Load the intelligence tier config for the feature-owner you will spawn:
 
@@ -161,11 +145,4 @@ Then loop back to Step 1 for the next issue.
 
 ## Continuous Mode
 
-For continuous polling, see `factory-watcher.ps1` (or `factory-watcher.sh` for Git Bash) in this skill's directory. It runs in a separate pane, polls `bd github sync` on an interval, and sends `/factory` to the foreman when new ready issues appear.
-
-Setup from any pane:
-
-```bash
-herdr pane split --current --direction down --cwd "$PWD" --no-focus
-herdr pane run <pane-id> "powershell -File .agents/skills/foreman/factory-watcher.ps1 -Interval 30"
-```
+Continuous polling (the GitHub watcher that keeps the factory picking up new issues) is **Step 2 of the `.agents/skills/start-factory` skill**. It runs in a separate pane and is not part of the foreman's own loop — see that skill to enable it.
