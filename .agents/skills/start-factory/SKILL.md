@@ -51,6 +51,12 @@ herdr pane run <pane-id> "pi --model $FOREMAN_MODEL --session-id $FOREMAN_SESSIO
 
 Wait for the pane's agent to become `pi`, then `herdr agent rename <pane-id> foreman` so the watcher can address it by a stable name. The stable **name** (`foreman`) is fine and expected; only the **session id** must be unique per pass so no state is resumed.
 
+> **⚠️ Kick the foreman off with an explicit instruction — not the bare `/factory` string.** `herdr agent prompt` injects **raw text**; it does **not** trigger TUI slash-command expansion, so sending `"/factory"` does **not** expand the `factory.md` prompt template. Worse, because `pi` auto-discovers every project skill (including this **start-factory** operator skill), the foreman will semantically match the bare text `/factory` to start-factory and start running the operator's job (asking "single pass or continuous?"). Instead, send an explicit prompt telling it to follow **only** its foreman skill and run one pass, e.g.:
+>
+> ```bash
+> herdr agent prompt "foreman" "You are the foreman. Follow ONLY your foreman skill (.agents/skills/foreman). Do NOT use the start-factory skill — that is the operator's. Run one factory pass now: sync GitHub, reconcile, find ready work, then claim -> worktree -> spawn feature-owner -> hand off -> monitor -> report. Start now."
+> ```
+
 Then hand off to the foreman skill for the actual sync → triage → dispatch loop.
 
 If the user only wants a single pass, you're done after the foreman reports. Otherwise continue to Step 2.
