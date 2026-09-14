@@ -103,7 +103,11 @@ if [[ "$NM_CACHE_ENABLED" == "true" && -n "$NM_CACHE_PATHS" ]]; then
   for _p in "${_NM_PATHS[@]}"; do
     _p="$(echo "$_p" | tr -d '[:space:]')"
     [[ -z "$_p" ]] && continue
-    NODE_MODULES_ARGS+=(--tmpfs "/workspace/${_p}:uid=1000,gid=1000,size=${NM_CACHE_SIZE}")
+    # NOTE: docker --tmpfs defaults to noexec,nosuid,nodev. node_modules holds
+    # executables (.bin shims, esbuild's platform binary whose postinstall
+    # exec-checks its version, etc.), so we MUST add `exec` or npm install
+    # thrashes: broken esbuild -> postinstall errors -> rm -rf on a busy mount.
+    NODE_MODULES_ARGS+=(--tmpfs "/workspace/${_p}:exec,uid=1000,gid=1000,size=${NM_CACHE_SIZE}")
   done
   echo "[sandbox] node_modules tmpfs (${NM_CACHE_SIZE}): ${_NM_PATHS[*]}" >&2
 fi
