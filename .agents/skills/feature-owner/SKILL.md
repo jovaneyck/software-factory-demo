@@ -48,6 +48,16 @@ Derive a session slug once, reused for every subagent you spawn:
 SESSION_SLUG=$(echo "{{GITHUB_ISSUE_NUMBER}}-{{TITLE}}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//' | cut -c1-60)
 ```
 
+### Pin this worktree's git identity to the factory bot (do this once, now)
+
+Every commit and push you make below must be attributed to the **factory bot account** (the one `gh` is authenticated as) — **not** the human's personal git identity. Run the identity helper once against your worktree before any git work:
+
+```bash
+bash .agents/skills/foreman/factory-git-identity.sh {{WORKTREE_PATH}}
+```
+
+This scopes the bot's `user.name`/`user.email` and a `gh`-based push credential to **this worktree only** (via `extensions.worktreeConfig`); the host's global git config and personal identity are left untouched. Your `git commit`/`git push` commands in the steps below then automatically author, commit, and authenticate as the bot with no extra flags.
+
 ## Step 1 — Spawn the sandboxed worker
 
 Create a **new tab** in your feature's workspace so the worker gets its own full-height tab (labeled `worker`), rather than sharing your pane. Every subagent you spawn gets its own tab inside `{{WORKSPACE_ID}}` this way.
@@ -371,6 +381,7 @@ Include in the human-readable part:
 - **Commit the worker's screenshots, then link them commit-pinned.** The worker saves screenshots to `artifacts/screenshots/` (not gitignored) but cannot commit them. In Step 3 you must `git add`/force-add and commit them before pushing (verify with `git ls-files artifacts/screenshots/` — untracked = 404 on GitHub), then rewrite each `{{SCREENSHOTS}}` line in the PR body to a rendered image `![caption](https://github.com/{{OWNER_REPO}}/blob/<SHA>/artifacts/screenshots/<file>.png?raw=true)`. A plain relative path never renders.
 - **Clarifications come back via GitHub *or* the worker pane.** When the worker signals `FACTORY:NEEDS_CLARIFICATION`, post the questions to the GitHub issue, then poll **both channels** each iteration: GitHub issue comments (newer than when you asked, not authored by you) **and** the worker pane's output. If the human answers on GitHub, relay it into the worker pane with `pane run`. If the human instead attaches to the worker pane and answers pi directly, detect the worker's own `FACTORY:READY_TO_PUSH`/`NEEDS_CLARIFICATION` and proceed accordingly — never strand the owner waiting on a channel the human didn't use. GitHub is the default path; the worker pane is an equally-supported fallback.
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
+- **Commit + push as the factory bot, not the human.** Run `bash .agents/skills/foreman/factory-git-identity.sh {{WORKTREE_PATH}}` once at setup so every commit/push from this worktree is authored and authenticated as the bot `gh` is logged in as — scoped to this worktree only, leaving the host's global git identity intact. If a commit ever shows the human's name/email, you skipped this.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{GITHUB_ISSUE_NUMBER}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
 - **Drive the sandboxed worker with `pane` commands, not `agent` commands.** herdr can't classify a `pi` running behind the `docker` wrapper (Windows), so `herdr agent prompt/read/rename/wait` don't work on the worker. Use `pane run` (prompt), `pane wait-output --match/--regex` (await signals), `pane read` (output), `pane send-keys` (control keys), and the **worker pane id** as the handle. The host-side reviewer and merger classify normally — use `agent` commands for them.
