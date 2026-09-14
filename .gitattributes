@@ -1,0 +1,22 @@
+# Ensure files executed inside the Linux sandbox always check out with LF,
+# regardless of the host's core.autocrlf setting. Windows worktrees with
+# autocrlf=true were checking out *.sh as CRLF, which breaks bash in the
+# factory sandbox (e.g. factory-seed-data.sh: "#!/bin/bash\r": bad interpreter).
+* text=auto
+
+# Shell scripts and other sandbox-run assets must be LF.
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Node/JS tooling run in the sandbox.
+*.js text eol=lf
+*.cjs text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+
+# Windows-only helpers stay CRLF.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
