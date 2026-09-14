@@ -66,7 +66,7 @@ detects `[[ -t 0 ]]`). On Windows the image's built-in `pwuser` (uid 1000) is us
 decision 7 — not the Playwright base's default root.
 
 **IMPLEMENTED & VALIDATED** against real Docker Desktop on Windows: image build, mount
-write-back to the host worktree, auth-only Copilot readiness, a real one-shot `pi` inference
+write-back to the host worktree, auth-only inference readiness, a real one-shot `pi` inference
 call, `npm install` + 130 backend tests, and an in-container Playwright screenshot of the live
 dev server written back to the host — all pass. Security acceptance checks pass: `CapDrop=ALL`,
 `NoNewPrivs=1`, no Docker socket, no host-drive leak, only the two intended mounts, labels
@@ -88,7 +88,7 @@ access in-sandbox.
 ### 6. Auth — copy `auth.json` only, run-local
 Before container start, copy host `~/.pi/agent/auth.json` →
 `<data>/runs/<id>/sandbox/pi/auth.json` (mode 0600), mounted writable at
-`/home/pwuser/.pi/agent`. **auth-only — validated:** `pi auth check --provider github-copilot`
+`/home/pwuser/.pi/agent`. **auth-only — validated:** `pi auth check --provider <provider>`
 returns `{"status":"ready"}` inside the container with just the copied `auth.json` (no
 `models-store.json`/`settings.json` needed). Canonical host credential is never mounted, never
 modified, never symlinked. Each run gets its own physical copy.
@@ -144,20 +144,20 @@ stdout — the feature-owner writes them to beads/GitHub), `FACTORY:READY_TO_PUS
 `FACTORY:FIXES_READY`.
 
 **Net credential boundary:**
-- Sandbox holds: **Copilot inference `auth.json` only** (run-local copy, 0600). This is not a
+- Sandbox holds: **inference `auth.json` only** (run-local copy, 0600). This is not a
   GitHub-repo credential — it's how `pi` authenticates to the model provider for inference.
   Unavoidable; without it the agent can't think. Verified `ready` in-container with the
   auth-only copy.
 - Sandbox never holds: `GITHUB_TOKEN`, git push credentials, a working git checkout, `gh`
   config, beads write authority.
-- Blast radius of a compromised worker: scribble in its own worktree, burn Copilot tokens. It
+- Blast radius of a compromised worker: scribble in its own worktree, burn inference tokens. It
   **cannot** commit, push, open PRs, or mutate issue state. Every repo-facing mutation is a
   deliberate, deterministic host-side step by the feature-owner. Materially stronger than the
   spec required.
 
 ### 9. Config + provider selection
 New `sandbox` section in `.agents/factory-config.json`:
-`{ enabled, image, limits{cpus,memory,pids}, network }`. `network: "default"` (Copilot needs
+`{ enabled, image, limits{cpus,memory,pids}, network }`. `network: "default"` (inference needs
 egress). **Default: sandboxed (`enabled: true`)**; `enabled: false` reverts to today's host path
 (`herdr pane run "pi …"`).
 
@@ -231,6 +231,6 @@ the shared `<main>/.git`, SSH dirs, other runs, other worktrees.
 ## Non-goals (from the spec)
 
 No Firecracker / Kubernetes / gVisor / remote execution / E2B. No Docker socket access from the
-agent. No credential proxy / Copilot token brokering. No network domain allowlists. No
+agent. No credential proxy / token brokering. No network domain allowlists. No
 Docker-in-Docker. No automatic sync-back of refreshed Pi credentials. No replacement of the
 existing git worktree implementation.

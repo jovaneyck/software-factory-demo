@@ -10,8 +10,9 @@
 #   - GITHUB_TOKEN / git push credentials
 # All GitHub/beads state changes are hoisted to the host-side feature-owner.
 #
-# Present: node, git, jq, ripgrep, and pi (the agent runtime). Copilot inference auth
-# is provided at runtime by a run-local mounted auth.json, never baked into the image.
+# Present: node, git, jq, ripgrep, and pi (the agent runtime). Inference auth
+# (see .agents/factory-config.json) is provided at runtime by a run-local mounted
+# auth.json, never baked into the image.
 
 FROM mcr.microsoft.com/playwright:v1.58.2-jammy
 

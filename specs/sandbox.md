@@ -9,7 +9,7 @@ The factory already:
 * uses Git worktrees for per-run filesystem isolation
 * uses `pidev` / Pi as the agent harness
 * stores application state on the filesystem
-* authenticates Pi through GitHub Copilot rather than an API key
+* authenticates Pi through an inference provider rather than an API key
 
 The Docker sandbox must ensure that agent shell/filesystem activity happens inside a disposable container while preserving the existing worktree-based run lifecycle.
 
@@ -197,7 +197,7 @@ No parent application storage directory should be mounted.
 
 # Pi Authentication
 
-The host already contains a working Pi authentication file for GitHub Copilot.
+The host already contains a working Pi authentication file for the inference provider.
 
 Determine the existing Pi auth path from the application's existing configuration or Pi conventions.
 
@@ -412,7 +412,7 @@ type SandboxNetworkMode =
 
 Default should be configurable.
 
-GitHub Copilot/Pi requires outbound network access, so Pi runs using:
+Pi's inference provider requires outbound network access, so Pi runs using:
 
 ```text
 default
@@ -841,19 +841,19 @@ assert unrelated host temp file cannot be accessed through expected paths
 assert container no longer exists
 ```
 
-A separate Pi/Copilot integration test may be manual because it requires real user authentication.
+A separate Pi inference integration test may be manual because it requires real user authentication.
 
 ---
 
 # Manual Acceptance Test
 
-With an existing valid GitHub Copilot Pi login:
+With an existing valid Pi inference login:
 
 1. Start a normal factory run with Docker sandboxing enabled.
 2. Confirm a per-run Docker container appears.
 3. Confirm the existing Git worktree is mounted at `/workspace`.
 4. Confirm `/home/agent/.pi/agent/auth.json` exists in the container.
-5. Confirm Pi can invoke GitHub Copilot without asking for an API key.
+5. Confirm Pi can invoke the inference provider without asking for an API key.
 6. Ask the agent to create or modify a file.
 7. Confirm the modification appears in the host Git worktree.
 8. Confirm normal factory diff/commit/merge handling still works.
@@ -933,7 +933,7 @@ Do not implement:
 * gVisor
 * Docker socket access from the agent
 * credential proxying
-* Copilot token brokering
+* inference token brokering
 * network domain allowlists
 * nested Docker
 * Docker-in-Docker
@@ -1023,7 +1023,7 @@ This feature is complete when:
 * existing Git worktrees are used directly as Docker workspaces
 * every sandboxed run gets a disposable Docker container
 * Pi/pidev executes inside that container
-* GitHub Copilot authentication works by copying `auth.json` into run-local mounted state
+* inference authentication works by copying `auth.json` into run-local mounted state
 * agent changes appear directly in the corresponding Git worktree
 * stdout/stderr continue flowing through the existing UI/logging system
 * run cancellation destroys the container

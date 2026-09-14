@@ -11,7 +11,7 @@ You do **not** touch the backlog, sync GitHub, or pick issues. That is the forem
 
 ## The credential boundary (read this first)
 
-The **worker runs inside a Docker sandbox** (see `specs/decisions.md`). The sandbox holds **only** the Copilot inference credential — it has **no `gh`, no `bd`, no `GITHUB_TOKEN`, no git push credentials.** Therefore:
+The **worker runs inside a Docker sandbox** (see `specs/decisions.md`). The sandbox holds **only** the inference credential — it has **no `gh`, no `bd`, no `GITHUB_TOKEN`, no git push credentials.** Therefore:
 
 - The **worker** does everything that needs no GitHub authority: grill, implement, run tests, take screenshots, and **`git commit`** (commits are local; the worktree is bind-mounted so commits appear on the host instantly).
 - **You (the feature-owner, on the host)** perform every GitHub/beads mutation: **`git push`, `gh pr create`, `gh` comments/labels, and all `bd` updates/syncs.** Agents communicate *desired* state changes upward via `FACTORY:` signals; you are the only actor with GitHub authority.

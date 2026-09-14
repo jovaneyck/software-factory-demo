@@ -7,8 +7,8 @@
 # directly. Herdr keeps controlling the agent via terminal-buffer scraping.
 #
 # The worktree (current directory, or --workspace) is bind-mounted at /workspace.
-# A run-local copy of the Copilot auth.json is mounted at /home/pwuser/.pi/agent.
-# NO GitHub credentials enter the container.
+# A run-local copy of the host auth.json (the inference credential) is mounted
+# at /home/pwuser/.pi/agent. NO GitHub credentials enter the container.
 #
 # Usage:
 #   sandbox-run.sh --run-id <id> [--workspace <path>] [--config <path>] -- <command> [args...]
@@ -67,7 +67,7 @@ if [[ "$ENABLED" != "true" ]]; then
   exec "$@"
 fi
 
-# --- Prepare run-local Copilot auth ------------------------------------------
+# --- Prepare run-local inference auth ----------------------------------------
 DATA_DIR="${SOFTWARE_FACTORY_DATA_DIR:-$HOME/.software-factory}"
 RUN_PI_DIR="$DATA_DIR/runs/$RUN_ID/sandbox/pi"
 bash "$SCRIPT_DIR/prepare-pi-auth.sh" "$RUN_PI_DIR" >/dev/null

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# prepare-pi-auth.sh — copy the host's canonical Pi/Copilot auth.json into a
-# run-local directory that will be mounted into the sandbox container.
+# prepare-pi-auth.sh — copy the host's canonical Pi auth.json (which carries the
+# inference credential) into a run-local directory that will be mounted into the
+# sandbox container.
 #
 # See specs/decisions.md, decision 6 (auth-only, run-local copy). The canonical
 # host credential is never mounted, never modified, never symlinked. Each run gets
@@ -18,7 +19,7 @@ SRC_AUTH="${2:-$HOME/.pi/agent/auth.json}"
 
 if [[ ! -f "$SRC_AUTH" ]]; then
   echo "ERROR: Pi auth.json not found at: $SRC_AUTH" >&2
-  echo "       The sandbox needs Copilot inference credentials. Run 'pi' once on the host to authenticate." >&2
+  echo "       The sandbox needs an inference credential. Run 'pi' once on the host to authenticate." >&2
   exit 1
 fi
 

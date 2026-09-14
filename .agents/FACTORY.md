@@ -36,7 +36,7 @@ not a bespoke orchestration service. The core insights:
 | **Terminal buffer as the control plane** | herdr detects and drives agents by **scraping the pane's terminal buffer**, not process inspection. This is *why* you can wrap `pi` in `docker run` and still control it — the TTY is the API. |
 | **Text signals over structured IPC** | Agents emit `FACTORY:READY_TO_PUSH`, `FACTORY:FEATURE_DONE:<n>:<url>`, etc. Parent agents `wait-output`/`read` for them. No message bus, no shared DB coupling — just greppable stdout. |
 | **One worktree per feature** | Isolated git worktrees let feature-owners run in parallel without branch/index conflicts. The worktree *is* the feature's workspace. |
-| **Credential boundary** | Agent-authored code (the worker) runs untrusted in a sandbox with **only** a Copilot inference credential. Anything with authority (push, PR, labels, bd) is done host-side by the feature-owner. Blast radius of a misbehaving worker ≈ its worktree. |
+| **Credential boundary** | Agent-authored code (the worker) runs untrusted in a sandbox with **only** an inference credential. Anything with authority (push, PR, labels, bd) is done host-side by the feature-owner. Blast radius of a misbehaving worker ≈ its worktree. |
 | **Sandbox the worker only** | The worker is the only agent running agent-authored shell/filesystem workloads. The reviewer just reads a diff; the merger runs `gh`/`bd`. Both stay host-side to keep it simple. |
 | **Conservative by default** | The factory stops at a *reviewed, green PR*. Humans merge and close. Auto-merge is opt-in per issue. |
 | **GitHub issue number is the canonical id** | Worktrees, branches, session ids, agent names, docker run-ids, and signals all key off the GitHub number (e.g. `15`). The beads id is used **only** for `bd` backend commands. One human-legible id everywhere. |
@@ -223,7 +223,7 @@ flowchart LR
   subgraph box[DOCKER SANDBOX — no authority]
     direction TB
     WK[worker pi]
-    CRED[Copilot inference cred ONLY]
+    CRED[inference cred ONLY]
     NOAUTH[no gh · no bd · no token · no git]
     WK --- CRED
     WK --- NOAUTH
