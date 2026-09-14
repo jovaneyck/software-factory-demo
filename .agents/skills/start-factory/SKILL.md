@@ -42,6 +42,15 @@ To start the foreman, follow the `.agents/skills/foreman` skill. In a Herdr sess
 FOREMAN_MODEL=$(cat .agents/factory-config.json | jq -r '."tiers"."foreman"')
 ```
 
+Spawn the foreman in its own pane. **The foreman is ephemeral — it must start with a fresh session every pass.** Never pass a fixed `--session-id` (e.g. `--session-id foreman`): `pi` resumes any session whose id already exists, so a stable id makes the foreman replay its previous run (re-polling dead feature-owners, re-dispatching already-handled issues). Use a **unique per-pass session id** instead:
+
+```bash
+FOREMAN_SESSION="foreman-$(date +%Y%m%d-%H%M%S)"
+herdr pane run <pane-id> "pi --model $FOREMAN_MODEL --session-id $FOREMAN_SESSION --name 'foreman' --skill .agents/skills/foreman --skill .agents/skills/herdr --skill .agents/skills/beads"
+```
+
+Wait for the pane's agent to become `pi`, then `herdr agent rename <pane-id> foreman` so the watcher can address it by a stable name. The stable **name** (`foreman`) is fine and expected; only the **session id** must be unique per pass so no state is resumed.
+
 Then hand off to the foreman skill for the actual sync → triage → dispatch loop.
 
 If the user only wants a single pass, you're done after the foreman reports. Otherwise continue to Step 2.
