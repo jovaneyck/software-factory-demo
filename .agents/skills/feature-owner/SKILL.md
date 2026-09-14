@@ -183,11 +183,11 @@ Parse the output for the factory signals:
 
 - **Neither signal found** — Read more output with `herdr pane read <worker-pane-id> --source recent-unwrapped --lines 200`. If the container has exited unexpectedly (`docker ps` shows no `factory-{{ID}}`), print `FACTORY:BLOCKED:{{ID}}` and report to the user.
 
-## Step 4 — Review and fix loop (automatic, no human input)
+## Step 4 — Review and fix (single round, automatic, no human input)
 
-Once a PR exists, spawn a reviewer. The reviewer is **not sandboxed** — it only reads a diff and posts a review comment (host-side, needs `gh`). The reviewer and worker iterate until LGTM or a safety limit.
+Once a PR exists, spawn a reviewer. The reviewer is **not sandboxed** — it only reads a diff and posts a review comment (host-side, needs `gh`). The reviewer runs **exactly once**; if it finds issues, the worker gets **one** fix pass. There is **no re-review loop**.
 
-**Safety limit:** Maximum **3 review rounds.** If the reviewer still finds issues after 3 rounds, stop and escalate.
+**Policy:** **Single review round.** The reviewer reviews once. Any issues it finds get one worker fix pass, then you proceed to Step 5 — the reviewer does **not** re-review. If issues were found, note them (and whether the fix pass addressed them) in your final report so the human can judge on merge.
 
 ### 4a-prep — Regenerate host-side dependency shims (Windows sandbox/host mismatch)
 
@@ -223,24 +223,15 @@ done
 herdr agent rename <reviewer-pane-id> "reviewer-{{ID}}"
 ```
 
-### 4b — Review/fix loop
+### 4b — Single review + optional fix
 
-Set `ROUND=1`. Then repeat:
+**Review phase (once):** Tell the reviewer to read its prompt file. Do **not** read it yourself:
+```bash
+herdr agent prompt "reviewer-{{ID}}" "Read your full instructions from .agents/skills/feature-owner/prompts/reviewer-prompt.md and follow them. Replace the placeholders with these values:
+- {{PR_URL}} = <pr-url>
 
-**Review phase:**
-
-- **Round 1:** Tell the reviewer to read its prompt file. Do **not** read it yourself:
-  ```bash
-  herdr agent prompt "reviewer-{{ID}}" "Read your full instructions from .agents/skills/feature-owner/prompts/reviewer-prompt.md and follow them. Replace the placeholders with these values:
-  - {{PR_URL}} = <pr-url>
-
-  Start now." --wait --timeout 300000
-  ```
-
-- **Round 2+:** The reviewer already has context:
-  ```bash
-  herdr agent prompt "reviewer-{{ID}}" "The worker pushed fixes for the issues you found. Re-review PR #<pr-number> to check whether your feedback was addressed and look for any new issues. Post a new review comment." --wait --timeout 300000
-  ```
+Start now." --wait --timeout 300000
+```
 
 Read the review result:
 
@@ -250,12 +241,12 @@ herdr agent read "reviewer-{{ID}}" --source recent-unwrapped --lines 30
 
 Check only whether the reviewer found issues (keywords like "no issues", "LGTM" vs "missing", "should", "bug"). Do NOT read the full review — it bloats your context.
 
-**If LGTM:** Break out of the loop. Proceed to Step 5.
+**If LGTM:** Proceed to Step 5.
 
-**If issues found and ROUND < 3:** Tell the worker to fix (it edits files only — no git):
+**If issues found:** Run **one** worker fix pass (the worker edits files only — no git):
 
 ```bash
-herdr pane run <worker-pane-id> "The reviewer left feedback on PR #<pr-number> (review round ROUND). Here are the review comments (you have no gh access, so I'm pasting them): <paste the reviewer's findings here>. Address ALL issues, then re-run tests and linter. Do NOT run git. Print FACTORY:FIXES_READY when done."
+herdr pane run <worker-pane-id> "The reviewer left feedback on PR #<pr-number>. Here are the review comments (you have no gh access, so I'm pasting them): <paste the reviewer's findings here>. Address ALL issues, then re-run tests and linter. Do NOT run git. Print FACTORY:FIXES_READY when done."
 herdr pane wait-output <worker-pane-id> --match "FACTORY:FIXES_READY" --timeout 600000
 ```
 
@@ -266,21 +257,15 @@ After the worker prints `FACTORY:FIXES_READY`, **you commit and push the fixes**
 ```bash
 export GITHUB_TOKEN=$(gh auth token)
 git -C {{WORKTREE_PATH}} add -A
-git -C {{WORKTREE_PATH}} commit -m "fix: address review round ROUND"
+git -C {{WORKTREE_PATH}} commit -m "fix: address review feedback"
 git -C {{WORKTREE_PATH}} push origin HEAD
 ```
 
-Then increment `ROUND` and loop back to the **Review phase**.
-
-**If issues found and ROUND >= 3:** Stop and escalate:
-
-> "⚠️ Review loop did not converge after 3 rounds on PR #<pr-number>. Please review manually or attach to the worker/reviewer panes."
-
-Still proceed to Step 5 so the work isn't lost, but note the unresolved state in your final report.
+Then proceed directly to Step 5 — **do not re-review.** Note in your final report that a review round found issues and a single fix pass was applied (unverified by re-review), so the human can confirm on merge.
 
 ## Step 5 — C4 Architecture Diff (you run it host-side)
 
-The worker has no git, so **you** generate the C4 diff on the host after the review loop converges (so the diagrams reflect the final code). You have the `c4-diff` skill loaded.
+The worker has no git, so **you** generate the C4 diff on the host after the single review (and any fix pass) is done (so the diagrams reflect the final code). You have the `c4-diff` skill loaded.
 
 ```bash
 cd {{WORKTREE_PATH}}
@@ -322,7 +307,7 @@ gh issue edit {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --add-label "status:
 
 By default the factory stops at a reviewed, green PR — the human reviews and merges. **Do not merge unless the foreman or user explicitly authorized auto-merge** (e.g. `AUTO_MERGE=true` in your kickoff prompt).
 
-If — and only if — auto-merge is authorized and the loop converged (LGTM), spawn a merger (host-side, needs `gh`/`bd`, not sandboxed):
+If — and only if — auto-merge is authorized and the review was LGTM (no issues found), spawn a merger (host-side, needs `gh`/`bd`, not sandboxed):
 
 ```bash
 herdr tab create --workspace {{WORKSPACE_ID}} --cwd {{WORKTREE_PATH}} --label merger --no-focus
@@ -356,14 +341,14 @@ Then print a concise final summary ending with a single machine-readable line th
 
 - `FACTORY:FEATURE_DONE:{{ID}}:<pr-url>` — reviewed green PR, ready for human merge
 - `FACTORY:FEATURE_MERGED:{{ID}}:<pr-url>` — merged (only if auto-merge was authorized)
-- `FACTORY:FEATURE_ESCALATED:{{ID}}:<pr-url>` — needs human attention (loop didn't converge, blocked, etc.)
+- `FACTORY:FEATURE_ESCALATED:{{ID}}:<pr-url>` — needs human attention (worker blocked, fix pass failed, etc.)
 
 Include in the human-readable part:
 - PR URL
-- Review rounds completed (e.g. "2 rounds — round 1 found issues, round 2 LGTM")
-- Review summary (what was found per round, what was fixed)
+- Review outcome (e.g. "LGTM on first review", or "review found issues — one fix pass applied, not re-reviewed")
+- Review summary (what the reviewer found, what the fix pass changed)
 - Final test/lint status
-- Whether the loop converged or was escalated
+- Whether a fix pass was applied (and that it was not re-reviewed)
 
 ## Rules
 
