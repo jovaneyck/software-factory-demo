@@ -1,10 +1,10 @@
 {
     "tiers": {
         "foreman": "github-copilot/claude-opus-4.8",
-        "feature-owner": "github-copilot/claude-opus-4.8",
-        "worker": "github-copilot/claude-opus-4.8",
-        "reviewer": "github-copilot/gpt-5.6-luna",
-        "merger": "github-copilot/claude-opus-4.8"
+        "feature-owner": "openrouter/deepseek/deepseek-v4.1-flash",
+        "worker": "openrouter/deepseek/deepseek-v4.1-flash",
+        "reviewer": "openrouter/deepseek/deepseek-v4.1-flash",
+        "merger": "openrouter/deepseek/deepseek-v4.1-flash"
     },
     "sandbox": {
         "enabled": true,
