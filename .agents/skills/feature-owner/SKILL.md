@@ -50,13 +50,13 @@ SESSION_SLUG=$(echo "{{GITHUB_ISSUE_NUMBER}}-{{TITLE}}" | tr '[:upper:]' '[:lowe
 
 ## Step 1 — Spawn the sandboxed worker
 
-Split your own pane to give the worker its own pane in the same worktree workspace.
+Create a **new tab** in your feature's workspace so the worker gets its own full-height tab (labeled `worker`), rather than sharing your pane. Every subagent you spawn gets its own tab inside `{{WORKSPACE_ID}}` this way.
 
 ```bash
-herdr pane split --pane {{OWN_PANE_ID}} --direction down --cwd {{WORKTREE_PATH}} --no-focus
+herdr tab create --workspace {{WORKSPACE_ID}} --cwd {{WORKTREE_PATH}} --label worker --no-focus
 ```
 
-Read the new pane id from `.result.pane.pane_id`. **Do not use `herdr agent start`** — on Windows, `pi` is a Node.js shell script and `agent start` uses `Start-Process` which cannot launch it. Use `pane run` + `agent rename`.
+Read the new pane id from `.result.root_pane.pane_id`. **Do not use `herdr agent start`** — on Windows, `pi` is a Node.js shell script and `agent start` uses `Start-Process` which cannot launch it. Use `pane run` + `agent rename`.
 
 The worker's `pi` runs **inside the Docker sandbox**. The pane's cwd is the worktree, which the launcher bind-mounts at `/workspace`; skill paths stay relative and resolve inside the container. **Do not** pass the `beads` or `c4-diff` skills or any GitHub token — the worker has no git or GitHub authority (c4-diff needs git, which doesn't work in the sandbox; you run it host-side in Step 5).
 
@@ -151,10 +151,10 @@ Once a PR exists, spawn a reviewer. The reviewer is **not sandboxed** — it onl
 ### 4a — Spawn the reviewer (once, host-side, not sandboxed)
 
 ```bash
-herdr pane split --pane <worker-pane-id> --direction down --cwd {{WORKTREE_PATH}} --no-focus
+herdr tab create --workspace {{WORKSPACE_ID}} --cwd {{WORKTREE_PATH}} --label reviewer --no-focus
 ```
 
-Read the new pane id from `.result.pane.pane_id`, then run `pi` directly (no sandbox — reviewer needs `gh` and touches no agent-authored execution):
+Read the new pane id from `.result.root_pane.pane_id`, then run `pi` directly (no sandbox — reviewer needs `gh` and touches no agent-authored execution):
 
 ```bash
 herdr pane run <reviewer-pane-id> "pi --model $REVIEWER_MODEL --session-id reviewer-${SESSION_SLUG} --name 'reviewer #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/pr-review"
@@ -267,8 +267,8 @@ By default the factory stops at a reviewed, green PR — the human reviews and m
 If — and only if — auto-merge is authorized and the loop converged (LGTM), spawn a merger (host-side, needs `gh`/`bd`, not sandboxed):
 
 ```bash
-herdr pane split --pane <reviewer-pane-id> --direction down --cwd {{WORKTREE_PATH}} --no-focus
-# read <merger-pane-id> from .result.pane.pane_id
+herdr tab create --workspace {{WORKSPACE_ID}} --cwd {{WORKTREE_PATH}} --label merger --no-focus
+# read <merger-pane-id> from .result.root_pane.pane_id
 herdr pane run <merger-pane-id> "pi --model $MERGER_MODEL --session-id merger-${SESSION_SLUG} --name 'merger #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/beads"
 for i in $(seq 1 30); do
   sleep 2
@@ -319,4 +319,5 @@ Include in the human-readable part:
 - **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
 - **Config reads use `node`, not `jq`** — via `sandbox/config-get.sh` (jq isn't reliably on the pane PATH).
 - **Focus.** Always use `--no-focus` when spawning subagents.
+- **One tab per agent.** Spawn each subagent in its **own tab** inside your feature's workspace (`herdr tab create --workspace {{WORKSPACE_ID}} --cwd {{WORKTREE_PATH}} --label <role>`), reading the pane id from `.result.root_pane.pane_id`. The worker, reviewer, and merger each get a full-height `worker`/`reviewer`/`merger` tab. Do not split your own pane for subagents.
 - **Do not read subagent prompt files yourself.** Tell subagents to read their own prompt files to keep your context clean.

@@ -65,18 +65,25 @@ bd update <id> --claim
 
 Read the issue enough to extract the values the feature-owner needs: beads id, GitHub issue number, title, description, and any existing design/notes. You do **not** need to deeply analyze the implementation — the worker (spawned by the feature-owner) does the design work.
 
-### Step 3 — Create a worktree
+### Step 3 — Create a worktree (one workspace per feature)
 
-Each issue gets an isolated git worktree so parallel feature-owners never conflict.
+Each issue gets an isolated git worktree so parallel feature-owners never conflict. The worktree **is** the feature's workspace — label it `feature-<id>`. Every agent for this feature (owner, worker, reviewer, merger) lives in its **own tab** inside this one workspace.
 
 ```bash
-herdr worktree create --branch feat/<id> --no-focus
+herdr worktree create --branch feat/<id> --label feature-<id> --no-focus
 ```
 
 Read the response JSON. Extract:
-- `.result.workspace.workspace_id` — the new workspace
+- `.result.workspace.workspace_id` — the feature's workspace (the feature-owner creates a tab per subagent inside it)
 - `.result.root_pane.pane_id` — the pane to start the feature-owner in
+- `.result.root_pane.tab_id` — the root tab, which will hold the feature-owner
 - `.result.worktree.path` — the worktree path
+
+Name the root tab `owner` so the feature-owner's own tab reads clearly (its subagents get their own `worker`/`reviewer`/`merger` tabs later):
+
+```bash
+herdr tab rename <tab-id> owner
+```
 
 ### Step 4 — Spawn the feature-owner
 
@@ -144,7 +151,7 @@ Then loop back to Step 1 for the next issue.
 ## Rules
 
 - **Stay at the backlog level.** You sync, triage, claim, create worktrees, and dispatch feature-owners. You never spawn workers/reviewers/mergers directly or run review loops — feature-owners do that.
-- **One worktree per issue.** Never reuse a worktree across issues.
+- **One workspace per feature, one tab per agent.** Each issue's worktree is its own workspace (labeled `feature-<id>`). The feature-owner runs in the `owner` tab and creates a **separate tab for each subagent** (`worker`, `reviewer`, `merger`) inside that same workspace — so every agent gets a full-height tab of its own. Never reuse a worktree across issues.
 - **Conservative by default.** Do not merge PRs, do not push to main, do not close issues without confirmation.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Feature-owner skills.** Always pass `--skill .agents/skills/feature-owner`, `--skill .agents/skills/herdr`, `--skill .agents/skills/beads`, and `--skill .agents/skills/c4-diff` when spawning a feature-owner (it runs the C4 diff host-side).
