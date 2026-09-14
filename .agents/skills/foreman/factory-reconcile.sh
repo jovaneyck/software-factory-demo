@@ -72,7 +72,10 @@ ISSUE_IDS=$(echo "$ISSUES_JSON" | node -e "
 # Mark issues with existing PRs as in_review (crash recovery)
 if [ -n "$ISSUE_IDS" ]; then
   while IFS=' ' read -r BEAD_ID GITHUB_NUM; do
-    PR_URL=$(echo "$PR_CLOSES_MAP" | grep "^${GITHUB_NUM} " | head -1 | cut -d' ' -f2)
+    # NOTE: grep exits 1 when an issue has no matching PR. Under `set -euo
+    # pipefail` an unguarded command substitution would abort the whole script,
+    # skipping the remaining issues. `|| true` keeps reconcile going.
+    PR_URL=$(echo "$PR_CLOSES_MAP" | grep "^${GITHUB_NUM} " | head -1 | cut -d' ' -f2 || true)
     if [ -n "$PR_URL" ]; then
       echo "  Marking $BEAD_ID as in_review (PR exists: $PR_URL)"
       bd update "$BEAD_ID" --status=in_review

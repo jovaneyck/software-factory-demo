@@ -82,11 +82,33 @@ function loadHerdr() {
 }
 
 // ---- 3. optional FACTORY signal scrape -----------------------------------
-const SIGNAL_RE = /FACTORY:(FEATURE_MERGED|FEATURE_DONE|FEATURE_ESCALATED|READY_TO_PUSH|FIXES_READY|NEEDS_CLARIFICATION|FRONTIER_CLEAR|BLOCKED|MERGED)|review round (\d+)/gi;
+const SIGNAL_NAME_RE = /^FACTORY:(FEATURE_MERGED|FEATURE_DONE|FEATURE_ESCALATED|READY_TO_PUSH|FIXES_READY|NEEDS_CLARIFICATION|FRONTIER_CLEAR|BLOCKED|MERGED)(?::.*)?$/i;
+const REVIEW_RE = /^review round (\d+)$/i;
+// A signal only counts when it is the ENTIRE content of an output line (a real
+// emitted signal), not when it appears embedded inside a shell command, a quoted
+// kickoff prompt, or a grep/wait-output argument (e.g. `grep -q "FACTORY:READY_TO_PUSH"`
+// or `print FACTORY:READY_TO_PUSH when done`). Those mentions previously caused the
+// dashboard to jump to "pushing → PR" while the worker was still `npm install`ing.
+function lineSignal(line) {
+  // strip ANSI, TUI box-drawing/gutter decoration, leading prompt markers, and whitespace
+  const t = line
+    .replace(/\x1b\[[0-9;]*m/g, "")
+    .replace(/[\u2500-\u257F\u2580-\u259F\u25A0-\u25FF]/g, "")
+    .replace(/^[\s>$#|]+/, "")
+    .trim();
+  const m = SIGNAL_NAME_RE.exec(t);
+  if (m) return m[1].toUpperCase();
+  const r = REVIEW_RE.exec(t);
+  if (r) return `REVIEW_R${r[1]}`;
+  return null;
+}
 function latestSignal(paneId) {
   const out = sh(`herdr pane read ${paneId} --source recent-unwrapped --lines 120`);
-  let last = null, m;
-  while ((m = SIGNAL_RE.exec(out)) !== null) last = m[1] ? m[1].toUpperCase() : `REVIEW_R${m[2]}`;
+  let last = null;
+  for (const line of out.split(/\r?\n/)) {
+    const sig = lineSignal(line);
+    if (sig) last = sig;
+  }
   return last;
 }
 
@@ -109,9 +131,13 @@ function deriveStage(bd, live, signal) {
   if (live) {
     const r = live.roles;
     const working = (x) => r[x] && r[x].status === "working";
+    // The worker runs dockerized (via a ps1 launcher), so herdr can't introspect
+    // it and always reports agent_status "unknown" — which is NOT idle. Treat only
+    // an explicit "idle" as idle; "unknown" (docker) or "working" both mean active.
+    const active = (x) => r[x] && r[x].status !== "idle";
     if (r.merger) return grn("merging");
     if (r.reviewer) return blu(working("reviewer") ? "reviewing" : "review (idle)");
-    if (r.worker) return yel(working("worker") ? "implementing" : "worker idle");
+    if (r.worker) return yel(active("worker") ? "implementing" : "worker idle");
     if (r.owner || r["feature-owner"]) return dim("owner setup");
   }
   const s = bd && bd.status;

@@ -49,11 +49,21 @@ bd update <beads-id> --claim
 
 Read the issue enough to extract the values the feature-owner needs: **beads id**, **GitHub issue number**, title, description, and any existing design/notes. You do **not** need to deeply analyze the implementation — the worker (spawned by the feature-owner) does the design work.
 
+**Extract the GitHub issue number programmatically — never eyeball it.** Parse it from the beads issue's `external_ref` (`.../issues/<n>`), which is authoritative:
+
+```bash
+# GITHUB_ISSUE_NUMBER is the trailing number of the external_ref URL, NOT the beads id suffix.
+GITHUB_ISSUE_NUMBER=$(bd show <beads-id> --json | jq -r '(if type=="array" then .[0] else . end).external_ref | capture("/issues/(?<n>[0-9]+)$").n')
+echo "github issue number = $GITHUB_ISSUE_NUMBER"   # sanity-check before using it
+```
+
+> **⚠️ Do not use the beads-id suffix as the issue number.** A beads id looks like `software-factory-demo-1789391410811-1-84400710`; its last segment (`84400710`) is **often all digits** and can be mistaken for a GitHub issue number, but it is **not** one. The GitHub issue number (e.g. `20`) only comes from `external_ref`. Always derive `<github-issue-number>` with the command above.
+
 > **Identifier convention (important):** the **GitHub issue number** is the factory's canonical id for everything **human/herdr-facing** — worktree branch/label, session ids, agent names/handles, and `FACTORY:` signals all use it. The **beads id** is used **only** for `bd` backend commands (`bd show/update/...`), because beads is keyed by its own id. Below, `<github-issue-number>` = the GitHub number (e.g. `15`) and `<beads-id>` = the beads id (e.g. `software-factory-demo-...-adb8fc2a`).
 
 ### Step 3 — Create a worktree (one workspace per feature)
 
-Each issue gets an isolated git worktree so parallel feature-owners never conflict. The worktree **is** the feature's workspace — label it `feature-<github-issue-number>` (use the **GitHub issue number**, e.g. `feature-15`, not the beads id). Every agent for this feature (owner, worker, reviewer, merger) lives in its **own tab** inside this one workspace.
+Each issue gets an isolated git worktree so parallel feature-owners never conflict. The worktree **is** the feature's workspace — label it `feature-<github-issue-number>` (use the **GitHub issue number** from Step 2's `external_ref` extraction, e.g. `feature-15` — **never** the beads id or its numeric suffix). Every agent for this feature (owner, worker, reviewer, merger) lives in its **own tab** inside this one workspace.
 
 ```bash
 herdr worktree create --branch feat/<github-issue-number> --label feature-<github-issue-number> --no-focus
@@ -138,7 +148,7 @@ Then loop back to Step 1 for the next issue.
 
 - **Stay at the backlog level.** You sync, triage, claim, create worktrees, and dispatch feature-owners. You never spawn workers/reviewers/mergers directly or run review loops — feature-owners do that.
 - **One workspace per feature, one tab per agent.** Each issue's worktree is its own workspace (labeled `feature-<github-issue-number>` using the **GitHub issue number**). The feature-owner runs in the `owner` tab and creates a **separate tab for each subagent** (`worker`, `reviewer`, `merger`) inside that same workspace — so every agent gets a full-height tab of its own. Never reuse a worktree across issues.
-- **GitHub issue number is the canonical id.** Worktree branch/label (`feat/<n>`, `feature-<n>`), session ids, agent names, docker run-id, and `FACTORY:` signals all use the **GitHub issue number**. The **beads id** is used only for `bd` backend commands.
+- **GitHub issue number is the canonical id.** Worktree branch/label (`feat/<n>`, `feature-<n>`), session ids, agent names, docker run-id, and `FACTORY:` signals all use the **GitHub issue number**. The **beads id** is used only for `bd` backend commands. **Always derive the number from the issue's `external_ref` (`.../issues/<n>$`) — never from the beads-id suffix, which is frequently all-digits and easy to mistake for an issue number.**
 - **Conservative by default.** Do not merge PRs, do not push to main, do not close issues without confirmation.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Feature-owner skills.** Always pass `--skill .agents/skills/feature-owner`, `--skill .agents/skills/herdr`, `--skill .agents/skills/beads`, and `--skill .agents/skills/c4-diff` when spawning a feature-owner (it runs the C4 diff host-side).

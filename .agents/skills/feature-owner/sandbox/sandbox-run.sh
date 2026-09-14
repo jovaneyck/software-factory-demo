@@ -50,6 +50,16 @@ CPUS=$(cfg sandbox.limits.cpus 2)
 MEMORY=$(cfg sandbox.limits.memory 4g)
 PIDS=$(cfg sandbox.limits.pids 512)
 NETWORK=$(cfg sandbox.network default)
+# node_modules acceleration: on Windows/macOS the worktree is a slow bind mount, so
+# keeping node_modules on it makes npm install + vitest crawl (thousands of tiny file
+# reads cross the Docker fs-translation layer). Shadow each node_modules dir with a
+# tmpfs so that IO happens in-memory on the container side. tmpfs (not an anonymous
+# volume) because an empty volume mounts root-owned while the sandbox runs as the
+# non-root pwuser (uid 1000) — tmpfs lets us set uid/gid directly, no root/CAP_CHOWN
+# needed (the security posture drops all caps). Size is a ceiling, not a reservation.
+NM_CACHE_ENABLED=$(cfg sandbox.nodeModulesCache.enabled false)
+NM_CACHE_SIZE=$(cfg sandbox.nodeModulesCache.tmpfsSize 1g)
+NM_CACHE_PATHS=$(cfg sandbox.nodeModulesCache.paths "")
 
 # --- Disabled path: run directly on the host (decision 9: "none") ------------
 if [[ "$ENABLED" != "true" ]]; then
@@ -86,6 +96,18 @@ fi
 echo "[sandbox] run=$RUN_ID image=$IMAGE workspace=$WORKSPACE_DOCKER net=$NETWORK" >&2
 echo "[sandbox] container=$CONTAINER_NAME cpus=$CPUS mem=$MEMORY pids=$PIDS" >&2
 
+# --- node_modules acceleration (tmpfs, uid-owned by the non-root sandbox user) --
+NODE_MODULES_ARGS=()
+if [[ "$NM_CACHE_ENABLED" == "true" && -n "$NM_CACHE_PATHS" ]]; then
+  IFS=',' read -ra _NM_PATHS <<< "$NM_CACHE_PATHS"
+  for _p in "${_NM_PATHS[@]}"; do
+    _p="$(echo "$_p" | tr -d '[:space:]')"
+    [[ -z "$_p" ]] && continue
+    NODE_MODULES_ARGS+=(--tmpfs "/workspace/${_p}:uid=1000,gid=1000,size=${NM_CACHE_SIZE}")
+  done
+  echo "[sandbox] node_modules tmpfs (${NM_CACHE_SIZE}): ${_NM_PATHS[*]}" >&2
+fi
+
 # --- TTY: interactive agents (herdr panes) need -t so pi renders its TUI and herdr
 # can scrape the buffer. Headless contexts (CI, this test harness) have no TTY, so
 # fall back to -i only to avoid "the input device is not a TTY".
@@ -110,6 +132,7 @@ exec docker run --rm "${TTY_FLAG[@]}" \
   --workdir /workspace \
   --mount "type=bind,src=${WORKSPACE_DOCKER},dst=/workspace" \
   --mount "type=bind,src=${RUN_PI_DIR_DOCKER},dst=/home/pwuser/.pi/agent" \
+  "${NODE_MODULES_ARGS[@]}" \
   --cap-drop ALL \
   --security-opt no-new-privileges \
   --pids-limit "$PIDS" \

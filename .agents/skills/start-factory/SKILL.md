@@ -5,7 +5,7 @@ description: "Start the software factory and (optionally) keep it running. Use w
 
 # Start Factory — Startup Steps
 
-Starting the factory centers on **two core steps**, plus an optional dashboard. Step 1 runs the factory once (a single pass over the currently-ready backlog). Step 2 is **optional** and turns on continuous operation by polling GitHub for new issues. Starting the factory is **not** the same as starting the poller — do Step 2 only if the user wants the factory to keep picking up new issues on its own. Step 3 is an optional read-only WIP dashboard.
+Starting the factory centers on **two core steps**, plus a dashboard that is **always** started. Step 1 runs the factory once (a single pass over the currently-ready backlog). Step 2 is **optional** and turns on continuous operation by polling GitHub for new issues. Starting the factory is **not** the same as starting the poller — do Step 2 only if the user wants the factory to keep picking up new issues on its own. Step 3 (the read-only WIP dashboard) is **mandatory**: always spawn it alongside the foreman in every factory startup, regardless of mode.
 
 Decide with the user which they want:
 
@@ -61,9 +61,9 @@ On Git Bash / non-Windows shells, use `factory-watcher.sh` instead of the `.ps1`
 
 Once the watcher is running, the factory will keep picking up new GitHub issues without further prompting until the watcher pane is stopped.
 
-## Step 3 — Start the live WIP dashboard (recommended)
+## Step 3 — Start the live WIP dashboard (always)
 
-Give the user an at-a-glance board of all work in progress and the stage each issue is in. It's **read-only** (joins `bd list` + `herdr pane list`, keyed by GitHub issue number) and refreshes in its own pane. Start it from any pane:
+**Always** start the dashboard alongside the foreman — do this on every `start the factory`, in both single-pass and continuous mode. Give the user an at-a-glance board of all work in progress and the stage each issue is in. It's **read-only** (joins `bd list` + `herdr pane list`, keyed by GitHub issue number) and refreshes in its own pane. Start it from any pane:
 
 ```bash
 herdr pane split --current --direction down --cwd "$PWD" --no-focus
@@ -76,7 +76,8 @@ herdr pane run <pane-id> "powershell -File .agents/tools/factory-dashboard.ps1 -
 
 ## Rules
 
-- **Two distinct steps.** Starting the factory (Step 1) and starting the poller (Step 2) are separate. Never assume "start the factory" means continuous mode — confirm with the user. The dashboard (Step 3) is an optional read-only add-on — safe to start in either mode.
+- **Two distinct steps.** Starting the factory (Step 1) and starting the poller (Step 2) are separate. Never assume "start the factory" means continuous mode — confirm with the user. The dashboard (Step 3) is **always** started — spawn it alongside the foreman in every startup, in either mode.
+- **Dashboard is mandatory.** Every factory startup must spawn the WIP dashboard next to the foreman.
 - **Prerequisites first.** Always verify Herdr, `GITHUB_TOKEN`, and `bd github status` before launching.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Hand off to the foreman.** This skill gets the factory started; the foreman skill owns the sync/triage/dispatch loop. Don't duplicate its work here.
