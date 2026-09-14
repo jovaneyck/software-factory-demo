@@ -127,17 +127,16 @@ Parse the output for the factory signals:
      ```bash
      git -C {{WORKTREE_PATH}} ls-files artifacts/screenshots/
      ```
-  2. Build the PR body. The worker wrote proof-of-work (summary, test output, lint output, screenshot references) to `{{WORKTREE_PATH}}/artifacts/pr-body.md`. Use it directly, or fill `.agents/skills/foreman/pr-template.md` if absent.
-
-     **Convert screenshot references into rendered image links.** The worker left each screenshot as a plain line like `artifacts/screenshots/proof.png — <caption>` (it couldn't know the commit SHA). GitHub only renders **Markdown image tags with an absolute raw URL**, so rewrite every such line in `pr-body.md` to a commit-pinned image, using the `SHA` you captured:
-     ```markdown
-     ![<caption>](https://github.com/{{OWNER_REPO}}/blob/<SHA>/artifacts/screenshots/proof.png?raw=true)
+  2. **Assemble the final PR body with the deterministic script — do NOT hand-edit screenshot links.** The worker's `artifacts/pr-body.md` references screenshots by *plain text paths that are frequently wrong* (wrong dir, wrong filename) and never render. Past runs shipped broken `screenshots/proof.png` text and 404s because this was done by hand. Instead, run the assembler, which ignores the worker's text and enumerates the screenshots **actually committed** under `artifacts/screenshots/`, turning each into a commit-pinned, rendered image link (and later splices the C4 diff — absent now, added in Step 5):
+     ```bash
+     PR_BODY=$(node .agents/skills/foreman/factory-pr-body.js \
+       --worktree {{WORKTREE_PATH}} --sha $SHA --repo {{OWNER_REPO}})
      ```
-     Do this for each screenshot line (one `![...]` per image). A plain relative path (`artifacts/screenshots/proof.png`) will **not** render and will 404 — it must be the full `https://github.com/{{OWNER_REPO}}/blob/<SHA>/...?raw=true` form. If the body says "N/A — backend-only change", leave it as-is.
+     `$PR_BODY` is the path to the finished body. The script prints to stderr how many screenshots it embedded — **confirm the count matches how many screens the change touched** (a multi-screen change showing only 1 image means the worker under-captured; relay that back as a fix). If the worker wrote "N/A — backend-only change" and no screenshots are committed, the section is left as-is.
   3. Create the PR:
      ```bash
      gh pr create --repo {{OWNER_REPO}} --base main --head <branch> \
-       --title "{{TITLE}}" --body-file {{WORKTREE_PATH}}/artifacts/pr-body.md
+       --title "{{TITLE}}" --body-file "$PR_BODY"
      ```
   4. Capture the PR number/URL from the output. Proceed to Step 4.
 
@@ -297,17 +296,20 @@ BASE=$(git merge-base main HEAD)
 # Follow the c4-diff skill with BASE and HEAD=HEAD, output to ./artifacts/
 ```
 
-Then commit, push, and splice `artifacts/diff.component.md` into the PR body between the Summary and Test Output sections:
+Then commit and push the diagrams, then **re-assemble the PR body with the same deterministic script** (now that `artifacts/diff.component.md` exists, it splices the C4 diff into an `## Architecture Changes` section between Summary and Test Output, and re-embeds the committed screenshots). Do **not** hand-splice into a `/tmp` file — that step used to be skipped and the diff never reached the PR:
 
 ```bash
 export GITHUB_TOKEN=$(gh auth token)
 git -C {{WORKTREE_PATH}} add -f artifacts/
 git -C {{WORKTREE_PATH}} commit -m "docs: C4 architecture diff"
 git -C {{WORKTREE_PATH}} push origin HEAD
-gh pr edit <pr-number> --repo {{OWNER_REPO}} --body-file /tmp/pr-body.md
+SHA=$(git -C {{WORKTREE_PATH}} rev-parse HEAD)
+PR_BODY=$(node .agents/skills/foreman/factory-pr-body.js \
+  --worktree {{WORKTREE_PATH}} --sha $SHA --repo {{OWNER_REPO}})
+gh pr edit <pr-number> --repo {{OWNER_REPO}} --body-file "$PR_BODY"
 ```
 
-If it fails, note it in the report but don't block Step 6.
+The script prints to stderr `architecture: spliced C4 diff before Test Output` on success — if instead it says `no diff at ...`, the c4-diff step didn't produce `artifacts/diff.component.md`; fix that before editing the PR. Verify on GitHub that both the Mermaid diagram **and** the screenshot images render.
 
 ## Step 6 — Cost report and status update
 
@@ -378,7 +380,7 @@ Include in the human-readable part:
 
 - **One issue only.** You own exactly one issue. Never touch the backlog or other issues.
 - **You are the only GitHub actor.** The worker is sandboxed with no `gh`/`bd`/token. Every `git push`, `gh pr create`, `gh` comment/label, and `bd` update/sync is done by **you** on the host in response to a worker `FACTORY:` signal.
-- **Commit the worker's screenshots, then link them commit-pinned.** The worker saves screenshots to `artifacts/screenshots/` (not gitignored) but cannot commit them. In Step 3 you must `git add`/force-add and commit them before pushing (verify with `git ls-files artifacts/screenshots/` — untracked = 404 on GitHub), then rewrite each `{{SCREENSHOTS}}` line in the PR body to a rendered image `![caption](https://github.com/{{OWNER_REPO}}/blob/<SHA>/artifacts/screenshots/<file>.png?raw=true)`. A plain relative path never renders.
+- **Never hand-assemble the PR body — use `factory-pr-body.js`.** Both screenshots and the C4 diff were repeatedly dropped or shipped as broken text when the LLM assembled the body by hand. The worker saves screenshots to `artifacts/screenshots/` and you generate the C4 diff to `artifacts/diff.component.md`; after committing them, run `node .agents/skills/foreman/factory-pr-body.js --worktree {{WORKTREE_PATH}} --sha <SHA> --repo {{OWNER_REPO}}` and pass its output to `gh pr create/edit --body-file`. It enumerates the **actually-committed** screenshots (ignoring the worker's often-wrong path text) into commit-pinned rendered images and splices the C4 diff — so neither can be silently omitted. Run it in Step 3 (screenshots) and again in Step 5 (after the diff exists).
 - **Clarifications come back via GitHub *or* the worker pane.** When the worker signals `FACTORY:NEEDS_CLARIFICATION`, post the questions to the GitHub issue, then poll **both channels** each iteration: GitHub issue comments (newer than when you asked, not authored by you) **and** the worker pane's output. If the human answers on GitHub, relay it into the worker pane with `pane run`. If the human instead attaches to the worker pane and answers pi directly, detect the worker's own `FACTORY:READY_TO_PUSH`/`NEEDS_CLARIFICATION` and proceed accordingly — never strand the owner waiting on a channel the human didn't use. GitHub is the default path; the worker pane is an equally-supported fallback.
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
 - **Commit + push as the factory bot, not the human.** Run `bash .agents/skills/foreman/factory-git-identity.sh {{WORKTREE_PATH}}` once at setup so every commit/push from this worktree is authored and authenticated as the bot `gh` is logged in as — scoped to this worktree only, leaving the host's global git identity intact. If a commit ever shows the human's name/email, you skipped this.
