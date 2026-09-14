@@ -67,9 +67,11 @@ Collect evidence that the change works. This goes into the PR body.
    # Wait for servers to be ready
    sleep 8
    # Take screenshot (you have Playwright + Chromium preinstalled in the sandbox)
-   mkdir -p screenshots
-   npx playwright screenshot --wait-for-timeout 3000 http://localhost:$FRONTEND_PORT/<relevant-path> screenshots/proof.png
+   # Save under artifacts/screenshots/ — this dir IS committed (it's not gitignored, unlike repo-root /screenshots/).
+   mkdir -p artifacts/screenshots
+   npx playwright screenshot --wait-for-timeout 3000 http://localhost:$FRONTEND_PORT/<relevant-path> artifacts/screenshots/proof.png
    ```
+   Save every screenshot under `artifacts/screenshots/` from the **repo root** (give each a descriptive name, e.g. `artifacts/screenshots/dog-delete.png`). Do **not** use a bare `screenshots/` dir (repo-root `/screenshots/` is gitignored) and do **not** `cd` into `app/` first (that would put them at `app/screenshots/`, off the expected path).
    Stop the dev servers after capturing (kill the background jobs).
 
    **Screenshot validation (MANDATORY):** After capturing, read the screenshot and verify:
@@ -87,7 +89,7 @@ Collect evidence that the change works. This goes into the PR body.
    - `{{SUMMARY}}` — one-line description of the change
    - `{{TEST_OUTPUT}}` — last 20 lines of `npm test` output
    - `{{LINT_OUTPUT}}` — lint output (or "Clean — no warnings or errors.")
-   - `{{SCREENSHOTS}}` — if you captured screenshots, list each as a line `screenshots/<filename> — <caption>`. The feature-owner turns these into commit-pinned image links after it commits (you don't know the commit SHA — it doesn't exist yet). If no frontend work, write "N/A — backend-only change."
+   - `{{SCREENSHOTS}}` — if you captured screenshots, list each as a line `artifacts/screenshots/<filename> — <caption>` (use the real path under `artifacts/screenshots/`). The feature-owner turns these into commit-pinned image links after it commits (you don't know the commit SHA — it doesn't exist yet). If no frontend work, write "N/A — backend-only change."
 2. Print `FACTORY:READY_TO_PUSH` on its own line. Stop. The feature-owner commits your files, pushes, and opens the PR.
 
 > **Review fixes:** when the feature-owner relays reviewer feedback, address it, re-run tests + linter, then print `FACTORY:FIXES_READY`. Do not commit or push.

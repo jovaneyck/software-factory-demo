@@ -102,14 +102,28 @@ Parse the output for the factory signals:
 
 - **`FACTORY:FRONTIER_CLEAR`** — Worker self-triaged and is proceeding to implementation. Continue monitoring for `FACTORY:READY_TO_PUSH`.
 
-- **`FACTORY:READY_TO_PUSH`** — Worker finished implementing, testing, taking screenshots, and has **committed** everything locally. The commits are already in the worktree (bind mount). **Now you push and open the PR** (the worker cannot):
+- **`FACTORY:READY_TO_PUSH`** — Worker finished implementing, testing, and taking screenshots. It has **no git**, so its files (edits + `artifacts/screenshots/`) are in the bind-mounted worktree but **uncommitted**. **Now you commit, push, and open the PR** (the worker cannot):
 
-  1. Push the worker's branch from the host worktree:
+  1. Commit the worker's work and push from the host worktree. The worker has **no git**, so its edited/created files (including screenshots under `artifacts/screenshots/`) are sitting in the bind-mounted worktree **uncommitted** — you commit them. Use `-A` plus a forced add of `artifacts/` so nothing is missed (screenshots must be force-added in case a stray ignore rule matches):
      ```bash
      export GITHUB_TOKEN=$(gh auth token)
+     git -C {{WORKTREE_PATH}} add -A
+     git -C {{WORKTREE_PATH}} add -f artifacts/screenshots/ 2>/dev/null || true
+     git -C {{WORKTREE_PATH}} commit -q -m "{{TITLE}}" || echo "(nothing to commit — worker may have committed already)"
      git -C {{WORKTREE_PATH}} push origin HEAD
+     SHA=$(git -C {{WORKTREE_PATH}} rev-parse HEAD)
+     ```
+     Sanity-check that any screenshots are now tracked (untracked = they will 404 on GitHub):
+     ```bash
+     git -C {{WORKTREE_PATH}} ls-files artifacts/screenshots/
      ```
   2. Build the PR body. The worker wrote proof-of-work (summary, test output, lint output, screenshot references) to `{{WORKTREE_PATH}}/artifacts/pr-body.md`. Use it directly, or fill `.agents/skills/foreman/pr-template.md` if absent.
+
+     **Convert screenshot references into rendered image links.** The worker left each screenshot as a plain line like `artifacts/screenshots/proof.png — <caption>` (it couldn't know the commit SHA). GitHub only renders **Markdown image tags with an absolute raw URL**, so rewrite every such line in `pr-body.md` to a commit-pinned image, using the `SHA` you captured:
+     ```markdown
+     ![<caption>](https://github.com/{{OWNER_REPO}}/blob/<SHA>/artifacts/screenshots/proof.png?raw=true)
+     ```
+     Do this for each screenshot line (one `![...]` per image). A plain relative path (`artifacts/screenshots/proof.png`) will **not** render and will 404 — it must be the full `https://github.com/{{OWNER_REPO}}/blob/<SHA>/...?raw=true` form. If the body says "N/A — backend-only change", leave it as-is.
   3. Create the PR:
      ```bash
      gh pr create --repo {{OWNER_REPO}} --base main --head <branch> \
@@ -287,10 +301,10 @@ If it fails, note it in the report but don't block Step 6.
 
 ## Step 6 — Cost report and status update
 
-Post token costs from all agents as a PR comment:
+Post token costs from all agents (including your own feature-owner pane — GitHub integration + orchestration) as a PR comment:
 
 ```bash
-bash .agents/skills/foreman/factory-cost-report.sh <pr-number> <worker-pane-id> <reviewer-pane-id> {{OWNER_REPO}}
+bash .agents/skills/foreman/factory-cost-report.sh <pr-number> {{OWN_PANE_ID}} <worker-pane-id> <reviewer-pane-id> {{OWNER_REPO}}
 ```
 
 Then mark the issue as ready for human review:
@@ -354,6 +368,7 @@ Include in the human-readable part:
 
 - **One issue only.** You own exactly one issue. Never touch the backlog or other issues.
 - **You are the only GitHub actor.** The worker is sandboxed with no `gh`/`bd`/token. Every `git push`, `gh pr create`, `gh` comment/label, and `bd` update/sync is done by **you** on the host in response to a worker `FACTORY:` signal.
+- **Commit the worker's screenshots, then link them commit-pinned.** The worker saves screenshots to `artifacts/screenshots/` (not gitignored) but cannot commit them. In Step 3 you must `git add`/force-add and commit them before pushing (verify with `git ls-files artifacts/screenshots/` — untracked = 404 on GitHub), then rewrite each `{{SCREENSHOTS}}` line in the PR body to a rendered image `![caption](https://github.com/{{OWNER_REPO}}/blob/<SHA>/artifacts/screenshots/<file>.png?raw=true)`. A plain relative path never renders.
 - **Clarifications come back via GitHub *or* the worker pane.** When the worker signals `FACTORY:NEEDS_CLARIFICATION`, post the questions to the GitHub issue, then poll **both channels** each iteration: GitHub issue comments (newer than when you asked, not authored by you) **and** the worker pane's output. If the human answers on GitHub, relay it into the worker pane with `pane run`. If the human instead attaches to the worker pane and answers pi directly, detect the worker's own `FACTORY:READY_TO_PUSH`/`NEEDS_CLARIFICATION` and proceed accordingly — never strand the owner waiting on a channel the human didn't use. GitHub is the default path; the worker pane is an equally-supported fallback.
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
