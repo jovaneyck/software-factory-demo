@@ -22,8 +22,8 @@ This is why the steps below split "worker commits + signals" from "you push + PR
 
 The foreman spawns you with these values (passed in your kickoff prompt):
 
-- `{{ID}}` — beads issue id
-- `{{GITHUB_ISSUE_NUMBER}}` — GitHub issue number
+- `{{ID}}` — beads issue id (used **only** for `bd` backend commands)
+- `{{GITHUB_ISSUE_NUMBER}}` — GitHub issue number (the **canonical id** for everything human/herdr-facing: worktree, session ids, agent names/handles, docker run-id, `FACTORY:` signals)
 - `{{TITLE}}` — issue title
 - `{{DESCRIPTION}}` — issue description
 - `{{DESIGN}}` — design notes, or `None`
@@ -63,13 +63,13 @@ The worker's `pi` runs **inside the Docker sandbox**. The pane's cwd is the work
 **Windows/herdr note:** herdr panes run PowerShell, where bare `bash` resolves to WSL bash (which cannot exec this repo's msys scripts). Launch via the **`.cmd` shim** with a `.\` prefix (PowerShell requires it for relative paths) — the shim locates Git Bash and forwards to `sandbox-run.sh`:
 
 ```bash
-herdr pane run <worker-pane-id> ".\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{ID}} -- pi --model $WORKER_MODEL --session-id worker-${SESSION_SLUG} --name 'worker #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/grill-me"
+herdr pane run <worker-pane-id> ".\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{GITHUB_ISSUE_NUMBER}} -- pi --model $WORKER_MODEL --session-id worker-${SESSION_SLUG} --name 'worker #{{GITHUB_ISSUE_NUMBER}}: {{TITLE}}' --skill .agents/skills/grill-me"
 ```
 ```
 
 > If `.sandbox.enabled` is `false` in `.agents/factory-config.json`, the launcher transparently runs `pi` on the host instead (migration/testing path). No change needed here. On non-Windows hosts, call `sandbox-run.sh` directly instead of the `.cmd` shim.
 
-Wait for `pi` to boot inside the container. **Important — sandboxed workers are driven by `pane` commands, not `agent` commands.** On Windows, herdr's process-based detection sees the `docker` wrapper, not `pi`, so it never classifies the worker as an agent (`herdr agent prompt/read/rename/wait` will NOT work on it). This is cosmetic — the worker still runs and is fully controllable via `pane run` / `pane wait-output` / `pane read` / `pane send-keys`, which work through the container. Use the **worker's pane id** as the handle everywhere (there is no `worker-{{ID}}` agent name).
+Wait for `pi` to boot inside the container. **Important — sandboxed workers are driven by `pane` commands, not `agent` commands.** On Windows, herdr's process-based detection sees the `docker` wrapper, not `pi`, so it never classifies the worker as an agent (`herdr agent prompt/read/rename/wait` will NOT work on it). This is cosmetic — the worker still runs and is fully controllable via `pane run` / `pane wait-output` / `pane read` / `pane send-keys`, which work through the container. Use the **worker's pane id** as the handle everywhere (there is no `worker-{{GITHUB_ISSUE_NUMBER}}` agent name).
 
 Wait for readiness by matching pi's startup banner in the pane buffer:
 
@@ -146,8 +146,8 @@ Parse the output for the factory signals:
      ```bash
      gh issue edit {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --add-label "status::needs_design" --remove-label "status::in_progress"
      ```
-  4. Print `FACTORY:NEEDS_CLARIFICATION:{{ID}}` on its own line and notify:
-     > "⚠️ Issue {{ID}} needs clarification. Open questions posted to GitHub issue #{{GITHUB_ISSUE_NUMBER}}. Reply there and I'll relay your answers to the worker automatically — no need to attach to the worker pane. (To answer directly instead: `herdr pane focus <worker-pane-id>`.)"
+  4. Print `FACTORY:NEEDS_CLARIFICATION:{{GITHUB_ISSUE_NUMBER}}` on its own line and notify:
+     > "⚠️ Issue #{{GITHUB_ISSUE_NUMBER}} needs clarification. Open questions posted to GitHub issue #{{GITHUB_ISSUE_NUMBER}}. Reply there and I'll relay your answers to the worker automatically — no need to attach to the worker pane. (To answer directly instead: `herdr pane focus <worker-pane-id>`.)"
 
   5. **Wait for the human's answer on either channel** — GitHub *or* the worker pane. Don't assume the human uses GitHub: they may instead attach to the worker pane and answer pi interactively. So each poll iteration checks **both** the GitHub issue comments **and** the worker pane's output, and whichever fires first wins. Poll every 30s, up to ~1 hour:
      ```bash
@@ -187,7 +187,7 @@ Parse the output for the factory signals:
        gh issue edit {{GITHUB_ISSUE_NUMBER}} --repo {{OWNER_REPO}} --add-label "status::in_progress" --remove-label "status::needs_design"
        ```
      - **`worker_reclarify`** — the worker raised *new* open questions. Repeat this whole clarification sub-flow from step 1 (re-extract questions, re-post to GitHub, reset `ASKED_AT`, poll again).
-     - **`timeout`** — no answer on either channel within the hour. Leave the `status::needs_design` label in place, print `FACTORY:NEEDS_CLARIFICATION:{{ID}}` again, and tell the user the questions are still waiting on the GitHub issue (they can answer there later, or attach to the worker pane).
+     - **`timeout`** — no answer on either channel within the hour. Leave the `status::needs_design` label in place, print `FACTORY:NEEDS_CLARIFICATION:{{GITHUB_ISSUE_NUMBER}}` again, and tell the user the questions are still waiting on the GitHub issue (they can answer there later, or attach to the worker pane).
 
   After the answer is handled (`github_answer` or `worker_ready`), wait for `FACTORY:READY_TO_PUSH` and do the commit + push + PR (as above). If `RESOLUTION` was already `worker_ready`, the signal is present and this returns immediately:
   ```bash
@@ -195,7 +195,7 @@ Parse the output for the factory signals:
   herdr pane read <worker-pane-id> --source recent-unwrapped --lines 150
   ```
 
-- **Neither signal found** — Read more output with `herdr pane read <worker-pane-id> --source recent-unwrapped --lines 200`. If the container has exited unexpectedly (`docker ps` shows no `factory-{{ID}}`), print `FACTORY:BLOCKED:{{ID}}` and report to the user.
+- **Neither signal found** — Read more output with `herdr pane read <worker-pane-id> --source recent-unwrapped --lines 200`. If the container has exited unexpectedly (`docker ps` shows no `factory-{{GITHUB_ISSUE_NUMBER}}`), print `FACTORY:BLOCKED:{{GITHUB_ISSUE_NUMBER}}` and report to the user.
 
 ## Step 4 — Review and fix (single round, automatic, no human input)
 
@@ -234,14 +234,14 @@ for i in $(seq 1 30); do
   sleep 2
   herdr agent list 2>&1 | grep -q '<reviewer-pane-id>' && break
 done
-herdr agent rename <reviewer-pane-id> "reviewer-{{ID}}"
+herdr agent rename <reviewer-pane-id> "reviewer-{{GITHUB_ISSUE_NUMBER}}"
 ```
 
 ### 4b — Single review + optional fix
 
 **Review phase (once):** Tell the reviewer to read its prompt file. Do **not** read it yourself:
 ```bash
-herdr agent prompt "reviewer-{{ID}}" "Read your full instructions from .agents/skills/feature-owner/prompts/reviewer-prompt.md and follow them. Replace the placeholders with these values:
+herdr agent prompt "reviewer-{{GITHUB_ISSUE_NUMBER}}" "Read your full instructions from .agents/skills/feature-owner/prompts/reviewer-prompt.md and follow them. Replace the placeholders with these values:
 - {{PR_URL}} = <pr-url>
 
 Start now." --wait --timeout 300000
@@ -250,7 +250,7 @@ Start now." --wait --timeout 300000
 Read the review result:
 
 ```bash
-herdr agent read "reviewer-{{ID}}" --source recent-unwrapped --lines 30
+herdr agent read "reviewer-{{GITHUB_ISSUE_NUMBER}}" --source recent-unwrapped --lines 30
 ```
 
 Check only whether the reviewer found issues (keywords like "no issues", "LGTM" vs "missing", "should", "bug"). Do NOT read the full review — it bloats your context.
@@ -331,8 +331,8 @@ for i in $(seq 1 30); do
   sleep 2
   herdr agent list 2>&1 | grep -q '<merger-pane-id>' && break
 done
-herdr agent rename <merger-pane-id> "merger-{{ID}}"
-herdr agent prompt "merger-{{ID}}" "Read your full instructions from .agents/skills/feature-owner/prompts/merger-prompt.md and follow them. Replace the placeholders with these values:
+herdr agent rename <merger-pane-id> "merger-{{GITHUB_ISSUE_NUMBER}}"
+herdr agent prompt "merger-{{GITHUB_ISSUE_NUMBER}}" "Read your full instructions from .agents/skills/feature-owner/prompts/merger-prompt.md and follow them. Replace the placeholders with these values:
 - {{PR_NUMBER}} = <pr-number>
 - {{ID}} = {{ID}}
 - {{GITHUB_ISSUE_NUMBER}} = {{GITHUB_ISSUE_NUMBER}}
@@ -348,14 +348,14 @@ Verify `FACTORY:MERGED:<pr-number>`. If conflicts or CI failures block it, note 
 Clean up the worker's sandbox container (defensive — `--rm` already removes it when the pane's `pi` exits, but a crashed run may leave one):
 
 ```bash
-bash .agents/skills/feature-owner/sandbox/cleanup-orphans.sh --run-id {{ID}}
+bash .agents/skills/feature-owner/sandbox/cleanup-orphans.sh --run-id {{GITHUB_ISSUE_NUMBER}}
 ```
 
 Then print a concise final summary ending with a single machine-readable line the foreman can parse:
 
-- `FACTORY:FEATURE_DONE:{{ID}}:<pr-url>` — reviewed green PR, ready for human merge
-- `FACTORY:FEATURE_MERGED:{{ID}}:<pr-url>` — merged (only if auto-merge was authorized)
-- `FACTORY:FEATURE_ESCALATED:{{ID}}:<pr-url>` — needs human attention (worker blocked, fix pass failed, etc.)
+- `FACTORY:FEATURE_DONE:{{GITHUB_ISSUE_NUMBER}}:<pr-url>` — reviewed green PR, ready for human merge
+- `FACTORY:FEATURE_MERGED:{{GITHUB_ISSUE_NUMBER}}:<pr-url>` — merged (only if auto-merge was authorized)
+- `FACTORY:FEATURE_ESCALATED:{{GITHUB_ISSUE_NUMBER}}:<pr-url>` — needs human attention (worker blocked, fix pass failed, etc.)
 
 Include in the human-readable part:
 - PR URL
@@ -372,7 +372,7 @@ Include in the human-readable part:
 - **Clarifications come back via GitHub *or* the worker pane.** When the worker signals `FACTORY:NEEDS_CLARIFICATION`, post the questions to the GitHub issue, then poll **both channels** each iteration: GitHub issue comments (newer than when you asked, not authored by you) **and** the worker pane's output. If the human answers on GitHub, relay it into the worker pane with `pane run`. If the human instead attaches to the worker pane and answers pi directly, detect the worker's own `FACTORY:READY_TO_PUSH`/`NEEDS_CLARIFICATION` and proceed accordingly — never strand the owner waiting on a channel the human didn't use. GitHub is the default path; the worker pane is an equally-supported fallback.
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
-- **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{ID}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
+- **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{GITHUB_ISSUE_NUMBER}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
 - **Drive the sandboxed worker with `pane` commands, not `agent` commands.** herdr can't classify a `pi` running behind the `docker` wrapper (Windows), so `herdr agent prompt/read/rename/wait` don't work on the worker. Use `pane run` (prompt), `pane wait-output --match/--regex` (await signals), `pane read` (output), `pane send-keys` (control keys), and the **worker pane id** as the handle. The host-side reviewer and merger classify normally — use `agent` commands for them.
 - **Reviewer/merger run host-side.** Reviewer skill: `--skill .agents/skills/pr-review`. Merger skill: `--skill .agents/skills/beads`.
 - **Regenerate host-side dependency shims before reviewing (Step 4a-prep).** The worker installs deps inside the Linux sandbox, producing only Unix `.bin` symlinks; the Windows host reviewer needs `.cmd`/`.ps1` shims to run `npm test`/`npm run build`. Always run a host-side `npm install` in each JS package before spawning the reviewer, or the reviewer reviews blind (`'vitest' is not recognized`).
