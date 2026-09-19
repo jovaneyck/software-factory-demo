@@ -12,6 +12,9 @@
 #   * Commit author/committer  -> bot login + GitHub noreply email (from `gh api user`).
 #   * Push credential          -> `gh auth git-credential`, overriding the host's
 #     personal credential helper (e.g. git-credential-manager) for this worktree.
+#   * Credential username      -> the bot login, so any credential store keys the bot
+#     token under `git:https://<bot>@github.com` instead of the shared
+#     `git:https://github.com` entry the host's personal account uses.
 #
 # Idempotent: safe to run more than once per worktree.
 set -euo pipefail
@@ -38,8 +41,10 @@ git -C "$WT" config --worktree user.email "$BOT_EMAIL"
 # an empty value resets the inherited (global) helper list, then gh is added.
 git -C "$WT" config --worktree --replace-all credential.helper ""
 git -C "$WT" config --worktree --add credential.helper '!gh auth git-credential'
+git -C "$WT" config --worktree "credential.https://github.com.username" "$BOT_LOGIN"
 
 echo "factory git identity for $WT:"
 echo "  user.name         = $(git -C "$WT" config user.name)"
 echo "  user.email        = $(git -C "$WT" config user.email)"
 echo "  credential.helper = $(git -C "$WT" config --get-all credential.helper | tr '\n' ' ')"
+echo "  credential user   = $(git -C "$WT" config 'credential.https://github.com.username')"
