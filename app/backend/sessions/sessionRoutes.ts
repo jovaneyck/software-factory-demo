@@ -5,15 +5,29 @@ import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
 import type { Session } from '../shared/types.js';
 import { validateUuid } from '../shared/validateUuid.js';
+import type { TrainingRepository } from '../trainings/TrainingRepository.js';
+import { sessionCsv } from './sessionCsv.js';
 
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  trainings: TrainingRepository,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
   router.param('dogId', validateUuid);
+
+  router.get('/dogs/:dogId/sessions/export.csv', (req, res) => {
+    const dog = dogs.getById(req.params.dogId);
+    if (!dog) return res.status(404).json({ error: 'Dog not found' });
+
+    const earliestDate = new Date(-8640000000000000);
+    const latestDate = new Date(8640000000000000);
+    const history = sessions.getByDogIdInRange(dog.id, earliestDate, latestDate);
+    res.attachment(`training-sessions-${dog.id}.csv`);
+    res.type('text/csv').send(sessionCsv(dog, history, trainings.getAll()));
+  });
 
   router.get('/dogs/:dogId/sessions', (req, res) => {
     const { dogId } = req.params;

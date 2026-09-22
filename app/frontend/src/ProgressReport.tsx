@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import ProgressGraph from './ProgressGraph';
 import DogTile from './DogTile';
 
@@ -58,6 +59,8 @@ function ProgressReport() {
   const [error, setError] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [dogData, setDogData] = useState<DogData | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportErrorDogId, setExportErrorDogId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/dogs')
@@ -107,6 +110,31 @@ function ProgressReport() {
 
   const selectedTraining = trainings.find((t) => t.id === selectedTrainingId);
 
+  async function exportSessions() {
+    if (!selectedDog || exporting) return;
+    setExporting(true);
+    setExportErrorDogId(null);
+    try {
+      const response = await fetch(`/api/dogs/${selectedDog.id}/sessions/export.csv`);
+      if (!response.ok) throw new Error('Export failed');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `training-sessions-${selectedDog.id}.csv`;
+      document.body.appendChild(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      setExportErrorDogId(selectedDog.id);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function selectDog(dogId: string) {
     setSearchParams({ dog: dogId });
   }
@@ -141,7 +169,23 @@ function ProgressReport() {
       <h2 className="text-2xl font-bold text-slate-800">Progress</h2>
       {selectedDog ? (
         <div className="mt-4">
-          <p className="text-lg font-semibold">{selectedDog.name}</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-lg font-semibold">{selectedDog.name}</p>
+            <button
+              onClick={exportSessions}
+              disabled={exporting}
+              aria-busy={exporting}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-wait"
+            >
+              <Download size={18} aria-hidden="true" className="shrink-0" />
+              Export all sessions (CSV)
+            </button>
+          </div>
+          {exportErrorDogId === selectedDog.id && (
+            <p role="alert" className="mt-2 text-sm text-red-600">
+              Could not export sessions. Please try again.
+            </p>
+          )}
           <button onClick={deselectDog} className="mt-2 text-sm text-blue-600 hover:underline">
             Change dog
           </button>

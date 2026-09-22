@@ -81,6 +81,7 @@ flowchart TD
         SessionRepository["SessionRepository<br/>interface"]
         FsSessionRepository["FsSessionRepository<br/>file-system impl"]
         FakeSessionRepository["FakeSessionRepository<br/>in-memory impl"]
+        sessionCsv["sessionCsv<br/>recorded history to safe CSV"]
     end
 
     subgraph Shared
@@ -102,6 +103,9 @@ flowchart TD
     sessionRoutes -->|uses| SessionListingService
     sessionRoutes -->|uses| validateUuid
     sessionRoutes -->|uses| Session
+    sessionRoutes -->|reads training names| TrainingRepository
+    sessionRoutes -->|serializes export| sessionCsv
+    sessionCsv -->|CSV escaping| PapaParse["Papa Parse"]
     SessionListingService -->|reads dogs| DogRepository
     SessionListingService -->|reads plans| PlanRepository
     SessionListingService -->|reads sessions| SessionRepository
@@ -110,3 +114,20 @@ flowchart TD
     FsSessionRepository -.->|implements| SessionRepository
     FakeSessionRepository -.->|implements| SessionRepository
 ```
+
+`GET /api/dogs/:dogId/sessions/export.csv` downloads the selected dog's entire
+recorded completed/skipped history, sorted by date and then session ID. It reads
+the session repository directly, so it neither generates planned entries nor
+inherits the progress graph's training/date filters. Unknown dogs return 404;
+invalid UUIDs return 400; empty histories return a header-only CSV.
+
+The UTF-8 BOM/CRLF CSV contains `date`, `dogName`, `dogId`, `trainingName`,
+`trainingId`, `planId`, `sessionId`, `status`, `score`, and `notes`. Missing values
+are empty cells; deleted training names are blank while their IDs are retained.
+Names reflect current repository data, not historical snapshots. Papa Parse
+quotes CSV delimiters and multiline text and prefixes formula-like text with an
+apostrophe for spreadsheet safety.
+
+The download action lives in `ProgressReport`, including its graph view, and is
+available without an assigned plan. Download errors stay on the report and can
+be retried. No persistence schema changes are required.
