@@ -16,14 +16,15 @@ Export a selected dog's complete recorded training-session history from the **Pr
 ```text
 npm test (app/)
 Backend:  Test Files  11 passed (11)
-          Tests      130 passed (130)
+          Tests      131 passed (131)
 Frontend: Test Files  17 passed (17)
           Tests      103 passed (103)
-Total: 233 passing tests
+Total: 234 passing tests
 
 Test-first: 12 new API cases failed before implementation, then passed.
 Test-first: 5 new UI cases failed before implementation, then passed;
            the no-selection case already passed.
+Review regression: API-accepted arrays receive formula protection.
 
 node artifacts/verify-browser.cjs
 PASS: 12 persisted records downloaded and parsed from the real browser.
@@ -39,7 +40,8 @@ PASS: no browser exceptions; five screenshots visually inspected.
 npm run lint (app/): backend ESLint + frontend ESLint passed.
 npm run build (app/backend/): TypeScript passed.
 npm run build (app/frontend/): TypeScript + Vite production build passed.
-Changed source/test files: Prettier check passed.
+Changed source/test files: initial Prettier check passed; later concurrent
+editor formatting was preserved without behavioral changes.
 git diff --check: passed.
 ```
 
@@ -61,4 +63,6 @@ artifacts/screenshots/report-empty-mobile.png - Export remains available for a d
 
 ## Factory Execution
 
-Implemented directly in Copilot under the user's override: no Herdr, no pi sandbox, no continuous watcher. Design questions and their resolution are recorded on issue #24. Independent review, final C4 evidence, and cost/telemetry disclosure are added during the remaining factory stages. This PR is not auto-merged.
+Implemented directly in Copilot under the user's override: no Herdr, no pi sandbox, no continuous watcher. Design questions and their resolution are recorded on issue #24. This PR is not auto-merged.
+
+Independent review found one P2 formula-protection bypass for API-accepted array values. One fix pass normalizes CSV cells before formula protection and adds a passing API regression. The fix was not independently re-reviewed, per factory policy. Full review details and cost disclosure are committed in `artifacts/review.md` and `artifacts/cost-report.md` and posted on the PR. Token and dollar telemetry is unavailable in this execution mode; no totals are invented.

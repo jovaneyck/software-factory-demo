@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import express, { type Express } from 'express';
 import crypto from 'crypto';
 import request from 'supertest';
+import Papa from 'papaparse';
 import { sessionRoutes } from './sessionRoutes.js';
 import { FakeDogRepository } from '../dogs/FakeDogRepository.js';
 import { FakeSessionRepository } from './FakeSessionRepository.js';
@@ -72,10 +73,10 @@ describe('Sessions API', () => {
       );
       expect(res.text).toBe(
         '\uFEFF' +
-          header +
-          '\r\n' +
-          `1999-01-01,Buddy,${dogId},Sit,${trainingId},old-plan,earlier,completed,8,Good\r\n` +
-          `2100-01-01,Buddy,${dogId},Sit,${trainingId},,later,skipped,,\r\n`,
+        header +
+        '\r\n' +
+        `1999-01-01,Buddy,${dogId},Sit,${trainingId},old-plan,earlier,completed,8,Good\r\n` +
+        `2100-01-01,Buddy,${dogId},Sit,${trainingId},,later,skipped,,\r\n`,
       );
     });
 
@@ -113,6 +114,30 @@ describe('Sessions API', () => {
         expect(res.text.split("'" + value)).toHaveLength(4);
       },
     );
+
+    it('neutralizes formula-like arrays accepted by the session write API', async () => {
+      const created = await request(app).post(`/api/dogs/${dogId}/sessions`).send({
+        trainingId: ['=1+1'],
+        planId: ['+cmd'],
+        date: '2026-01-01',
+        status: 'completed',
+        notes: ['@SUM(1)'],
+      });
+      expect(created.status).toBe(201);
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions/export.csv`);
+      expect(res.status).toBe(200);
+      const parsed = Papa.parse(res.text, { header: true, skipEmptyLines: true });
+      expect(parsed.errors).toEqual([]);
+      expect(parsed.data).toEqual([
+        expect.objectContaining({
+          sessionId: created.body.id,
+          trainingId: "'=1+1",
+          planId: "'+cmd",
+          notes: "'@SUM(1)",
+        }),
+      ]);
+    });
 
     it('keeps sessions whose training has been deleted, with an empty name', async () => {
       sessions.save({ id: 'orphan', dogId, trainingId, date: '2026-01-01', status: 'skipped' });

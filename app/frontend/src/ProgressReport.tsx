@@ -204,11 +204,10 @@ function ProgressReport() {
                   <button
                     key={value}
                     onClick={() => setTimeRange(value)}
-                    className={`rounded-full px-3 py-1 text-sm font-medium ${
-                      timeRange === value
+                    className={`rounded-full px-3 py-1 text-sm font-medium ${timeRange === value
                         ? 'bg-blue-600 text-white'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
+                      }`}
                   >
                     {label}
                   </button>

@@ -147,7 +147,7 @@ describe('ProgressReport', () => {
         ok: true,
         blob: async () => new Blob(['date,status\r\n']),
       } as Response);
-      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { });
       await user.click(screen.getByRole('button', { name: /export all sessions/i }));
       expect(global.fetch).toHaveBeenLastCalledWith('/api/dogs/dog-2/sessions/export.csv');
     });
@@ -171,7 +171,7 @@ describe('ProgressReport', () => {
           ok: true,
           blob: async () => new Blob(['csv']),
         } as Response);
-        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { });
         await user.click(button);
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       },
