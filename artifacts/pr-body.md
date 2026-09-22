@@ -32,6 +32,7 @@ PASS: all dates/trainings despite graph filters; correct dog and ordering.
 PASS: UTF-8 BOM, filename, empty history without plan, HTTP failure/retry.
 PASS: desktop 1440x1000 and fresh mobile 390x844, no mobile overflow.
 PASS: no browser exceptions; five screenshots visually inspected.
+PASS: before/after/diff C4 diagrams parsed and rendered in Mermaid 11.
 ```
 
 ## Lint Output
