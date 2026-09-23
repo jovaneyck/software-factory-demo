@@ -9,12 +9,13 @@
 //      artifacts/screenshots/ (NOT trusting the worker's often-wrong paths/names).
 //   2. Splices the C4 component diff (artifacts/diff.component.md) into an
 //      ## Architecture Changes section, between Summary and Test Output.
-//   3. Writes the result to a file for `gh pr create/edit --body-file`.
+//   3. Splices a ## Try It Live section with the running preview URL (--preview-url).
+//   4. Writes the result to a file for `gh pr create/edit --body-file`.
 //
 // Usage:
 //   node factory-pr-body.js --worktree <path> --sha <sha> --repo <owner/repo> \
 //        [--body <artifacts/pr-body.md>] [--diff <artifacts/diff.component.md>] \
-//        [--out <path>]
+//        [--preview-url <http://localhost:PORT>] [--preview-note <text>] [--out <path>]
 //
 // Exit codes: 0 ok (prints OUT path + a summary to stderr); non-zero on hard error.
 'use strict';
@@ -117,6 +118,30 @@ if (fs.existsSync(diffPath)) {
   }
 } else {
   console.error(`architecture: no diff at ${diffPath} (skipping C4 section)`);
+}
+
+// --- splice the live preview URL right after the Summary section ---
+const previewUrl = arg('preview-url');
+if (previewUrl) {
+  if (!/^https?:\/\/[^\s)]+$/.test(previewUrl)) {
+    console.error(`ERROR: --preview-url is not a valid http(s) URL: ${previewUrl}`);
+    process.exit(1);
+  }
+  const note = arg('preview-note',
+    'Running on the factory host from this branch\'s worktree while the PR is in review. Click around to try the change yourself.');
+  const section = `\n## Try It Live\n\n${previewUrl}\n\n${note}\n`;
+  if (/\n##\s*Try It Live/i.test(body)) {
+    body = body.replace(/\n##\s*Try It Live[\s\S]*?(?=\n#{1,6}\s|\n*$)/i, section);
+    console.error('preview: replaced existing Try It Live section');
+  } else if (/\n#{1,6}\s*(Architecture Changes|Test Output)/i.test(body)) {
+    body = body.replace(/\n(#{1,6}\s*(?:Architecture Changes|Test Output))/i, `${section}\n$1`);
+    console.error(`preview: spliced Try It Live (${previewUrl})`);
+  } else {
+    body = body.trimEnd() + '\n' + section;
+    console.error(`preview: appended Try It Live (${previewUrl})`);
+  }
+} else {
+  console.error('preview: no --preview-url given (skipping Try It Live section)');
 }
 
 fs.writeFileSync(outPath, body.replace(/\n{3,}/g, '\n\n').trimEnd() + '\n', 'utf8');

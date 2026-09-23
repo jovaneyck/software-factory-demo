@@ -217,11 +217,11 @@ Once a PR exists, spawn a reviewer. The reviewer is **not sandboxed** — it onl
 
 The worker installed dependencies **inside the Linux Docker sandbox**, so `node_modules/.bin/` contains only Unix symlinks (e.g. `vitest -> ../vitest/vitest.mjs`) — **no `.cmd`/`.ps1` shims**. The reviewer runs **host-side on Windows**, where `npm test`/`npm run build` shell out via `cmd.exe`, which can only launch `*.cmd` shims. Without this step the reviewer hits `'vitest' is not recognized` and cannot actually run tests/build (it would review blind).
 
-Run a host-side `npm install` in each JS package the reviewer will test, **before** spawning the reviewer. This regenerates the Windows shims against the already-present packages (fast — nothing new to download):
+Run a host-side `npm install` in each JS package the reviewer will test **and** that the preview app (Step 5b) runs from. This regenerates the Windows shims against the already-present packages (fast — nothing new to download):
 
 ```bash
-# For each package with a package.json + tests (e.g. app/frontend). Adjust paths to the repo.
-for pkg in app/frontend; do
+# For each package with a package.json (backend + frontend). Adjust paths to the repo.
+for pkg in app/backend app/frontend; do
   if [ -f "{{WORKTREE_PATH}}/$pkg/package.json" ]; then
     (cd "{{WORKTREE_PATH}}/$pkg" && npm install --no-audit --no-fund) || echo "WARN: npm install failed in $pkg"
   fi
@@ -342,7 +342,7 @@ BASE=$(git merge-base main HEAD)
 # Follow the c4-diff skill with BASE and HEAD=HEAD, output to ./artifacts/
 ```
 
-Then commit and push the diagrams, then **re-assemble the PR body with the same deterministic script** (now that `artifacts/diff.component.md` exists, it splices the C4 diff into an `## Architecture Changes` section between Summary and Test Output, and re-embeds the committed screenshots). Do **not** hand-splice into a `/tmp` file — that step used to be skipped and the diff never reached the PR:
+Then commit and push the diagrams. **Do not edit the PR body yet** — first start the live preview app (Step 5b), so its URL goes into the same body assembly:
 
 ```bash
 export GITHUB_TOKEN=$(gh auth token)
@@ -350,12 +350,61 @@ git -C {{WORKTREE_PATH}} add -f artifacts/
 git -C {{WORKTREE_PATH}} commit -m "docs: C4 architecture diff"
 git -C {{WORKTREE_PATH}} push origin HEAD
 SHA=$(git -C {{WORKTREE_PATH}} rev-parse HEAD)
+```
+
+## Step 5b — Start the app in the worktree so a human can click around
+
+The PR is about to be handed to a human. Start this branch's app **on the host, from your worktree**, and leave it running so the reviewer can click through the change instead of only reading screenshots. The worker's sandbox is gone by now, so **you** start it.
+
+Pick ports deterministically from the issue number so parallel features never collide, and so the URL in the PR stays stable across restarts:
+
+```bash
+PREVIEW_BACKEND_PORT=$((3100 + {{GITHUB_ISSUE_NUMBER}} % 800))
+PREVIEW_FRONTEND_PORT=$((5200 + {{GITHUB_ISSUE_NUMBER}} % 700))
+PREVIEW_URL="http://localhost:$PREVIEW_FRONTEND_PORT"
+```
+
+Seed the worktree's data dir (idempotent), then run each server in its own herdr tab so it survives your turn and the human can read its logs:
+
+```bash
+bash .agents/skills/foreman/factory-seed-data.sh
+
+herdr tab create --workspace {{WORKSPACE_ID}} --cwd {{WORKTREE_PATH}}/app/backend --label preview-backend --no-focus
+# read <preview-backend-pane-id> from .result.root_pane.pane_id
+herdr pane run <preview-backend-pane-id> "\$env:PORT='$PREVIEW_BACKEND_PORT'; npm run dev"
+
+herdr tab create --workspace {{WORKSPACE_ID}} --cwd {{WORKTREE_PATH}}/app/frontend --label preview-frontend --no-focus
+# read <preview-frontend-pane-id> from .result.root_pane.pane_id
+herdr pane run <preview-frontend-pane-id> "\$env:BACKEND_PORT='$PREVIEW_BACKEND_PORT'; npx vite --port $PREVIEW_FRONTEND_PORT --strictPort"
+```
+
+> Panes run PowerShell, hence `$env:NAME='value'` (escaped above so your shell doesn't expand it). `--strictPort` makes vite fail loudly instead of silently serving on a different port than the one you publish in the PR.
+
+**Verify both are actually up before publishing the URL** — a dead link in the PR is worse than no link:
+
+```bash
+for i in $(seq 1 30); do
+  sleep 2
+  curl -fsS "http://localhost:$PREVIEW_BACKEND_PORT/api/health" >/dev/null 2>&1 \
+    && curl -fsS "$PREVIEW_URL" >/dev/null 2>&1 && echo PREVIEW_UP && break
+done
+```
+
+If it never comes up, read the two preview panes (`herdr pane read <id> --source recent-unwrapped --lines 40`), fix the cause (usually missing host-side shims — re-run the Step 4a-prep `npm install`), and retry. If it still won't start, **omit `--preview-url` below** and say so in your final report rather than publishing a broken link.
+
+## Step 5c — Assemble and publish the PR body
+
+Now **re-assemble the PR body with the deterministic script** (with `artifacts/diff.component.md` present it splices the C4 diff into an `## Architecture Changes` section between Summary and Test Output, re-embeds the committed screenshots, and adds a `## Try It Live` section for the preview URL). Do **not** hand-splice into a `/tmp` file — that step used to be skipped and the diff never reached the PR:
+
+```bash
+export GITHUB_TOKEN=$(gh auth token)
 PR_BODY=$(node .agents/skills/foreman/factory-pr-body.js \
-  --worktree {{WORKTREE_PATH}} --sha $SHA --repo {{OWNER_REPO}})
+  --worktree {{WORKTREE_PATH}} --sha $SHA --repo {{OWNER_REPO}} \
+  --preview-url "$PREVIEW_URL")
 gh pr edit <pr-number> --repo {{OWNER_REPO}} --body-file "$PR_BODY"
 ```
 
-The script prints to stderr `architecture: spliced C4 diff before Test Output` on success — if instead it says `no diff at ...`, the c4-diff step didn't produce `artifacts/diff.component.md`; fix that before editing the PR. Verify on GitHub that both the Mermaid diagram **and** the screenshot images render.
+The script prints to stderr `architecture: spliced C4 diff before Test Output` and `preview: spliced Try It Live (<url>)` on success — if instead it says `no diff at ...`, the c4-diff step didn't produce `artifacts/diff.component.md`; fix that before editing the PR. Verify on GitHub that the Mermaid diagram, the screenshot images, **and** the preview URL all render.
 
 ## Step 6 — Cost report and status update
 
@@ -415,6 +464,8 @@ Clean up the worker's sandbox container (defensive — `--rm` already removes it
 bash .agents/skills/feature-owner/sandbox/cleanup-orphans.sh --run-id {{GITHUB_ISSUE_NUMBER}}
 ```
 
+**Leave the `preview-backend` and `preview-frontend` tabs running.** They are the human's click-through environment for this PR; killing them turns the PR's `## Try It Live` link into a dead link. They stop when the human closes those tabs (or when the worktree is removed after merge).
+
 Then print a concise final summary ending with a single machine-readable line the foreman can parse:
 
 - `FACTORY:FEATURE_DONE:{{GITHUB_ISSUE_NUMBER}}:<pr-url>` — reviewed green PR, ready for human merge
@@ -423,6 +474,7 @@ Then print a concise final summary ending with a single machine-readable line th
 
 Include in the human-readable part:
 - PR URL
+- Live preview URL (or why it could not be started), and that it stays up until the `preview-*` tabs are closed
 - Review outcome (e.g. "LGTM on first review", or "review found issues — one fix pass applied, not re-reviewed")
 - Review summary (what the reviewer found, what the fix pass changed)
 - Final test/lint status
@@ -433,7 +485,8 @@ Include in the human-readable part:
 
 - **One issue only.** You own exactly one issue. Never touch the backlog or other issues.
 - **You are the only GitHub actor.** The worker is sandboxed with no `gh`/`bd`/token. Every `git push`, `gh pr create`, `gh` comment/label, and `bd` update/sync is done by **you** on the host in response to a worker `FACTORY:` signal.
-- **Never hand-assemble the PR body — use `factory-pr-body.js`.** Both screenshots and the C4 diff were repeatedly dropped or shipped as broken text when the LLM assembled the body by hand. The worker saves screenshots to `artifacts/screenshots/` and you generate the C4 diff to `artifacts/diff.component.md`; after committing them, run `node .agents/skills/foreman/factory-pr-body.js --worktree {{WORKTREE_PATH}} --sha <SHA> --repo {{OWNER_REPO}}` and pass its output to `gh pr create/edit --body-file`. It enumerates the **actually-committed** screenshots (ignoring the worker's often-wrong path text) into commit-pinned rendered images and splices the C4 diff — so neither can be silently omitted. Run it in Step 3 (screenshots) and again in Step 5 (after the diff exists).
+- **Never hand-assemble the PR body — use `factory-pr-body.js`.** Both screenshots and the C4 diff were repeatedly dropped or shipped as broken text when the LLM assembled the body by hand. The worker saves screenshots to `artifacts/screenshots/` and you generate the C4 diff to `artifacts/diff.component.md`; after committing them, run `node .agents/skills/foreman/factory-pr-body.js --worktree {{WORKTREE_PATH}} --sha <SHA> --repo {{OWNER_REPO}} [--preview-url <url>]` and pass its output to `gh pr create/edit --body-file`. It enumerates the **actually-committed** screenshots (ignoring the worker's often-wrong path text) into commit-pinned rendered images, splices the C4 diff, and adds the `## Try It Live` preview link — so none of them can be silently omitted. Run it in Step 3 (screenshots) and again in Step 5c (after the diff exists and the preview is up).
+- **Hand off a *running* app, not just a PR.** Before the human review handoff you start the branch's backend + frontend host-side from your worktree (Step 5b), on ports derived from the issue number, verify both respond, publish the frontend URL in the PR, and leave those tabs running. Never publish a preview URL you haven't curl-verified.
 - **Clarifications come back via GitHub *or* the worker pane.** When the worker signals `FACTORY:NEEDS_CLARIFICATION`, post the questions to the GitHub issue, then poll **both channels** each iteration: GitHub issue comments (newer than when you asked, not authored by you) **and** the worker pane's output. If the human answers on GitHub, relay it into the worker pane with `pane run`. If the human instead attaches to the worker pane and answers pi directly, detect the worker's own `FACTORY:READY_TO_PUSH`/`NEEDS_CLARIFICATION` and proceed accordingly — never strand the owner waiting on a channel the human didn't use. GitHub is the default path; the worker pane is an equally-supported fallback.
 - **Conservative by default.** Do not merge PRs, push to main, or close issues unless explicitly authorized.
 - **Commit + push as the factory bot, not the human.** Run `bash .agents/skills/foreman/factory-git-identity.sh {{WORKTREE_PATH}}` once at setup so every commit/push from this worktree is authored and authenticated as the bot `gh` is logged in as — scoped to this worktree only, leaving the host's global git identity intact. If a commit ever shows the human's name/email, you skipped this.
