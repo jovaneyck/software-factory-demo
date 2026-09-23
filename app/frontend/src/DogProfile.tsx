@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import ProgressView from './ProgressView';
+import SurpriseTrainingModal from './SurpriseTrainingModal';
 
 interface Dog {
   id: string;
@@ -22,6 +23,8 @@ interface Training {
 
 function DogProfile() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [progressKey, setProgressKey] = useState(0);
   const [dog, setDog] = useState<Dog | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -86,6 +89,20 @@ function DogProfile() {
     }
   };
 
+  const surpriseOpen = searchParams.get('surprise') === '1';
+
+  const openSurprise = () => {
+    const next = new URLSearchParams(searchParams);
+    next.set('surprise', '1');
+    setSearchParams(next);
+  };
+
+  const closeSurprise = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('surprise');
+    setSearchParams(next);
+  };
+
   if (loading) {
     return <p className="text-slate-500 text-center py-12">Loading...</p>;
   }
@@ -115,7 +132,17 @@ function DogProfile() {
         <span>←</span> <span>Back</span>
       </Link>
 
-      <h2 className="text-2xl font-bold text-slate-800">{dog.name}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold text-slate-800">{dog.name}</h2>
+        {trainings.length > 0 && (
+          <button
+            onClick={openSurprise}
+            className="shrink-0 bg-purple-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-purple-700 transition-colors"
+          >
+            Surprise me
+          </button>
+        )}
+      </div>
 
       <img
         src={`/uploads/dogs/${dog.picture}`}
@@ -125,7 +152,7 @@ function DogProfile() {
 
       {assignedPlan ? (
         <>
-          <ProgressView dogId={id!} trainings={trainings} />
+          <ProgressView key={progressKey} dogId={id!} trainings={trainings} />
 
           <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
             <Link
@@ -167,6 +194,17 @@ function DogProfile() {
             </button>
           </div>
         </div>
+      )}
+
+      {surpriseOpen && (
+        <SurpriseTrainingModal
+          dogId={id!}
+          onClose={closeSurprise}
+          onSaved={() => {
+            closeSurprise();
+            setProgressKey((k) => k + 1);
+          }}
+        />
       )}
     </div>
   );

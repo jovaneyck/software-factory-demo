@@ -10,17 +10,18 @@ interface Dog {
 
 function DogList() {
   const [dogs, setDogs] = useState<Dog[]>([]);
+  const [hasTrainings, setHasTrainings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch('/api/dogs')
-      .then((res) => {
-        if (!res.ok) throw new Error('fetch failed');
-        return res.json();
-      })
-      .then((data) => {
+    Promise.all([fetch('/api/dogs'), fetch('/api/trainings')])
+      .then(async ([dogsRes, trainingsRes]) => {
+        if (!dogsRes.ok) throw new Error('fetch failed');
+        const data = await dogsRes.json();
+        const trainingsData = trainingsRes.ok ? await trainingsRes.json() : [];
         setDogs(data);
+        setHasTrainings(Array.isArray(trainingsData) && trainingsData.length > 0);
         setLoading(false);
       })
       .catch(() => {
@@ -69,7 +70,20 @@ function DogList() {
       </div>
       <div className="space-y-3">
         {dogs.map((dog) => (
-          <DogTile key={dog.id} dog={dog} to={`/dogs/${dog.id}`} />
+          <div key={dog.id} className="flex items-stretch gap-2">
+            <div className="flex-1 min-w-0">
+              <DogTile dog={dog} to={`/dogs/${dog.id}`} />
+            </div>
+            {hasTrainings && (
+              <Link
+                to={`/dogs/${dog.id}?surprise=1`}
+                aria-label={`Surprise me for ${dog.name}`}
+                className="shrink-0 flex items-center bg-purple-600 text-white px-4 rounded-2xl text-sm font-medium hover:bg-purple-700 transition-colors"
+              >
+                Surprise me
+              </Link>
+            )}
+          </div>
         ))}
       </div>
     </div>

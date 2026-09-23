@@ -374,4 +374,105 @@ describe('DogProfile', () => {
     expect(screen.queryByRole('link', { name: /view plan/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /unassign/i })).not.toBeInTheDocument();
   });
+
+  it('opens the surprise training modal when clicking Surprise me', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ id: 't1', name: 'Recall' }]),
+        } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}/trainings/surprise`) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: 't1', name: 'Recall' }),
+        } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /surprise me/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Recall')).toBeInTheDocument();
+    });
+  });
+
+  it('registers a surprise training ad hoc from a deep link', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}/trainings/surprise`) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: 't1', name: 'Recall' }),
+        } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}/sessions` && options?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 's1' }) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}?surprise=1`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Recall')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Recall')).not.toBeInTheDocument();
+    });
+
+    const postCall = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url) === `/api/dogs/${DOG_ID}/sessions` && options?.method === 'POST',
+    );
+    expect(postCall).toBeDefined();
+    const body = JSON.parse(String(postCall![1]!.body));
+    expect(body.trainingId).toBe('t1');
+    expect(body.status).toBe('completed');
+  });
 });

@@ -48,6 +48,32 @@ describe('DogList', () => {
     });
   });
 
+  it('renders a Surprise me link for each dog', async () => {
+    const dogs = [
+      { id: '1', name: 'Buddy', picture: 'buddy.jpg' },
+      { id: '2', name: 'Max', picture: 'max.jpg' },
+    ];
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(dogs),
+    } as Response);
+
+    render(
+      <BrowserRouter>
+        <DogList />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    const buddySurprise = screen.getByRole('link', { name: /surprise me for Buddy/i });
+    expect(buddySurprise).toHaveAttribute('href', '/dogs/1?surprise=1');
+    const maxSurprise = screen.getByRole('link', { name: /surprise me for Max/i });
+    expect(maxSurprise).toHaveAttribute('href', '/dogs/2?surprise=1');
+  });
+
   it('shows profile picture badges for dogs with pictures', async () => {
     const dogs = [
       { id: '1', name: 'Buddy', picture: 'buddy.jpg' },
