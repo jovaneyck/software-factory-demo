@@ -35,7 +35,9 @@ export class SurpriseTrainingService {
       const bDate = lastPerformed.get(b.id) ?? '';
       if (aDate !== bDate) return aDate < bDate ? -1 : 1;
       if (a.name !== b.name) return a.name < b.name ? -1 : 1;
-      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      if (a.id < b.id) return -1;
+      if (a.id > b.id) return 1;
+      return 0;
     });
 
     return sorted[0];

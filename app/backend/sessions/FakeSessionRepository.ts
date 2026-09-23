@@ -9,7 +9,7 @@ export class FakeSessionRepository implements SessionRepository {
   }
 
   getByDogId(dogId: string): Session[] {
-    return [...this.data.values()].filter((s) => s.dogId === dogId);
+    return this.getByDogIdInRange(dogId, new Date('0000-01-01'), new Date('9999-12-31'));
   }
 
   getByDogIdInRange(dogId: string, from: Date, to: Date): Session[] {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ModalShell from './ModalShell';
 
 export interface SessionSheetSession {
   id?: string;
@@ -12,11 +13,11 @@ export interface SessionSheetSession {
 }
 
 interface SessionSheetProps {
-  dogId: string;
-  trainingName: string;
-  session: SessionSheetSession;
-  onClose: () => void;
-  onSaved: () => void;
+  readonly dogId: string;
+  readonly trainingName: string;
+  readonly session: SessionSheetSession;
+  readonly onClose: () => void;
+  readonly onSaved: () => void;
 }
 
 /**
@@ -58,81 +59,78 @@ function SessionSheet({ dogId, trainingName, session, onClose, onSaved }: Sessio
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/30" />
-      <div
-        className="relative bg-white rounded-2xl w-full max-w-lg mx-4 p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold text-slate-800">{trainingName}</h3>
-        <p className="text-sm text-slate-500">{session.date}</p>
+    <ModalShell onClose={onClose} contentClassName="space-y-4 max-h-[90vh] overflow-y-auto">
+      <h3 className="text-lg font-semibold text-slate-800">{trainingName}</h3>
+      <p className="text-sm text-slate-500">{session.date}</p>
 
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-slate-700">Status</legend>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="status"
+              value="completed"
+              checked={status === 'completed'}
+              onChange={() => setStatus('completed')}
+            />
+            <span>Completed</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="status"
+              value="skipped"
+              checked={status === 'skipped'}
+              onChange={() => setStatus('skipped')}
+            />
+            <span>Skipped</span>
+          </label>
+        </div>
+      </fieldset>
+
+      {status === 'completed' && (
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Status</label>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="status"
-                value="completed"
-                checked={status === 'completed'}
-                onChange={() => setStatus('completed')}
-              />
-              Completed
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="status"
-                value="skipped"
-                checked={status === 'skipped'}
-                onChange={() => setStatus('skipped')}
-              />
-              Skipped
-            </label>
+          <label htmlFor="score-slider" className="text-sm font-medium text-slate-700">
+            Score
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="score-slider"
+              type="range"
+              min={1}
+              max={10}
+              value={score ?? 5}
+              onChange={(e) => setScore(Number(e.target.value))}
+              className="flex-1"
+            />
+            <span className="text-lg font-semibold text-slate-800 w-6 text-center">
+              {score ?? 5}
+            </span>
           </div>
         </div>
+      )}
 
-        {status === 'completed' && (
-          <div className="space-y-2">
-            <label htmlFor="score-slider" className="text-sm font-medium text-slate-700">
-              Score
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                id="score-slider"
-                type="range"
-                min={1}
-                max={10}
-                value={score ?? 5}
-                onChange={(e) => setScore(Number(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-lg font-semibold text-slate-800 w-6 text-center">
-                {score ?? 5}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Notes</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-            rows={3}
-          />
-        </div>
-
-        <button
-          onClick={handleSave}
-          className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700"
-        >
-          Save
-        </button>
+      <div className="space-y-2">
+        <label htmlFor="session-notes" className="text-sm font-medium text-slate-700">
+          Notes
+        </label>
+        <textarea
+          id="session-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+          rows={3}
+        />
       </div>
-    </div>
+
+      <button
+        onClick={handleSave}
+        className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700"
+      >
+        Save
+      </button>
+    </ModalShell>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ModalShell from './ModalShell';
 import SessionSheet, { type SessionSheetSession } from './SessionSheet';
 
 interface Training {
@@ -15,9 +16,9 @@ function today(): string {
 }
 
 interface SurpriseTrainingModalProps {
-  dogId: string;
-  onClose: () => void;
-  onSaved: () => void;
+  readonly dogId: string;
+  readonly onClose: () => void;
+  readonly onSaved: () => void;
 }
 
 /**
@@ -51,36 +52,24 @@ function SurpriseTrainingModal({ dogId, onClose, onSaved }: SurpriseTrainingModa
 
   if (state === 'loading') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-        <div className="fixed inset-0 bg-black/30" />
-        <div
-          className="relative bg-white rounded-2xl w-full max-w-lg mx-4 p-6"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="text-slate-500">Finding a training…</p>
-        </div>
-      </div>
+      <ModalShell onClose={onClose}>
+        <p className="text-slate-500">Finding a training…</p>
+      </ModalShell>
     );
   }
 
   if (state === 'empty' || !training) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-        <div className="fixed inset-0 bg-black/30" />
-        <div
-          className="relative bg-white rounded-2xl w-full max-w-lg mx-4 p-6 space-y-4"
-          onClick={(e) => e.stopPropagation()}
+      <ModalShell onClose={onClose} contentClassName="space-y-4">
+        <h3 className="text-lg font-semibold text-slate-800">Surprise training</h3>
+        <p className="text-slate-600">No trainings yet. Create one to get started.</p>
+        <button
+          onClick={onClose}
+          className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-medium hover:bg-slate-200"
         >
-          <h3 className="text-lg font-semibold text-slate-800">Surprise training</h3>
-          <p className="text-slate-600">No trainings yet. Create one to get started.</p>
-          <button
-            onClick={onClose}
-            className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-medium hover:bg-slate-200"
-          >
-            Close
-          </button>
-        </div>
-      </div>
+          Close
+        </button>
+      </ModalShell>
     );
   }
 

@@ -21,6 +21,34 @@ function mockSessionsEndpoint(sessions: Record<string, unknown[]> = {}) {
   };
 }
 
+function mockSurpriseProfile(dog: Record<string, unknown>) {
+  return vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
+    const urlStr = String(url);
+    if (urlStr === `/api/dogs/${DOG_ID}`) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+    }
+    if (urlStr === '/api/plans') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+    }
+    if (urlStr === '/api/trainings') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([{ id: 't1', name: 'Recall' }]),
+      } as Response);
+    }
+    if (urlStr === `/api/dogs/${DOG_ID}/trainings/surprise`) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ id: 't1', name: 'Recall' }),
+      } as Response);
+    }
+    if (urlStr === `/api/dogs/${DOG_ID}/sessions` && options?.method === 'POST') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 's1' }) } as Response);
+    }
+    return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+  });
+}
+
 describe('DogProfile', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -378,29 +406,7 @@ describe('DogProfile', () => {
   it('opens the surprise training modal when clicking Surprise me', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
-
-    vi.spyOn(global, 'fetch').mockImplementation((url) => {
-      const urlStr = String(url);
-      if (urlStr === `/api/dogs/${DOG_ID}`) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
-      }
-      if (urlStr === '/api/plans') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
-      if (urlStr === '/api/trainings') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([{ id: 't1', name: 'Recall' }]),
-        } as Response);
-      }
-      if (urlStr === `/api/dogs/${DOG_ID}/trainings/surprise`) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ id: 't1', name: 'Recall' }),
-        } as Response);
-      }
-      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
-    });
+    mockSurpriseProfile(dog);
 
     render(
       <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
@@ -425,28 +431,7 @@ describe('DogProfile', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
 
-    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
-      const urlStr = String(url);
-      if (urlStr === `/api/dogs/${DOG_ID}`) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
-      }
-      if (urlStr === '/api/plans') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
-      if (urlStr === '/api/trainings') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
-      if (urlStr === `/api/dogs/${DOG_ID}/trainings/surprise`) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ id: 't1', name: 'Recall' }),
-        } as Response);
-      }
-      if (urlStr === `/api/dogs/${DOG_ID}/sessions` && options?.method === 'POST') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 's1' }) } as Response);
-      }
-      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
-    });
+    const fetchMock = mockSurpriseProfile(dog);
 
     render(
       <MemoryRouter initialEntries={[`/dogs/${DOG_ID}?surprise=1`]}>
