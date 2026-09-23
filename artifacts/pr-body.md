@@ -28,7 +28,7 @@ Adds a "Surprise me" action on the home page and dog detail page that pops up th
 > frontend@0.0.0 test
 > vitest run
  Test Files  18 passed (18)
-      Tests  102 passed (102)
+      Tests  103 passed (103)
    Duration  94.41s
 ```
 

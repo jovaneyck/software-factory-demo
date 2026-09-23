@@ -156,4 +156,32 @@ describe('DogList', () => {
     });
     expect(screen.queryByText(/no dogs registered/i)).not.toBeInTheDocument();
   });
+
+  it('still shows the dog list when the trainings fetch fails', async () => {
+    const dogs = [{ id: '1', name: 'Buddy', picture: 'buddy.jpg' }];
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      if (String(url) === '/api/dogs') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dogs) } as Response);
+      }
+      if (String(url) === '/api/trainings') {
+        return Promise.reject(new Error('Network error'));
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <BrowserRouter>
+        <DogList />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    // Trainings are unavailable, so the optional action is hidden...
+    expect(screen.queryByRole('link', { name: /surprise me/i })).not.toBeInTheDocument();
+    // ...but the failed trainings request must not blank the whole page.
+    expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
+  });
 });

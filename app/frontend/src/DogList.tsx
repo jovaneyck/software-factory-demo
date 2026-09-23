@@ -15,19 +15,36 @@ function DogList() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    Promise.all([fetch('/api/dogs'), fetch('/api/trainings')])
-      .then(async ([dogsRes, trainingsRes]) => {
-        if (!dogsRes.ok) throw new Error('fetch failed');
-        const data = await dogsRes.json();
-        const trainingsData = trainingsRes.ok ? await trainingsRes.json() : [];
+    fetch('/api/dogs')
+      .then((res) => {
+        if (!res.ok) throw new Error('fetch failed');
+        return res.json();
+      })
+      .then((data) => {
         setDogs(data);
-        setHasTrainings(Array.isArray(trainingsData) && trainingsData.length > 0);
         setLoading(false);
       })
       .catch(() => {
         setError(true);
         setLoading(false);
       });
+  }, []);
+
+  // Loaded independently so a failure here can never blank the dog list —
+  // it only hides the optional "Surprise me" actions.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/trainings')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled) setHasTrainings(Array.isArray(data) && data.length > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setHasTrainings(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
