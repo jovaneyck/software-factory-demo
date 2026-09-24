@@ -4,12 +4,36 @@ import type { DogRepository } from '../dogs/DogRepository.js';
 import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
 import type { Session } from '../shared/types.js';
+import type { TrainingRepository } from '../trainings/TrainingRepository.js';
 import { validateUuid } from '../shared/validateUuid.js';
+
+function escapeCsv(value: string): string {
+  const safeValue = /^[\t\r\n ]*[=+\-@]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replaceAll('"', '""')}"`;
+}
+
+function filenamePart(value: string): string {
+  return (
+    value
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'dog'
+  );
+}
+
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  trainings: TrainingRepository,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
@@ -64,6 +88,53 @@ export function sessionRoutes(
 
     sessions.save(session as unknown as Session);
     res.status(201).json(session);
+  });
+
+  router.get('/dogs/:dogId/sessions/export', (req, res) => {
+    const { dogId } = req.params;
+    const { from, to } = req.query;
+    if (
+      typeof from !== 'string' ||
+      typeof to !== 'string' ||
+      !isValidDate(from) ||
+      !isValidDate(to)
+    ) {
+      return res.status(400).json({ error: 'Valid from and to dates are required (YYYY-MM-DD)' });
+    }
+    if (from > to) {
+      return res.status(400).json({ error: 'from must be on or before to' });
+    }
+
+    const dog = dogs.getById(dogId);
+    if (!dog) return res.status(404).json({ error: 'Dog not found' });
+
+    const trainingNames = new Map(
+      trainings.getAll().map((training) => [training.id, training.name]),
+    );
+    const rows = sessions
+      .getByDogIdInRange(dogId, new Date(`${from}T00:00:00`), new Date(`${to}T23:59:59.999`))
+      .filter((session) => session.status === 'completed' || session.status === 'skipped')
+      .sort((a, b) => a.date.localeCompare(b.date) || a.trainingId.localeCompare(b.trainingId))
+      .map((session) =>
+        [
+          dog.name,
+          session.date,
+          trainingNames.get(session.trainingId) ?? session.trainingId,
+          session.status,
+          session.score?.toString() ?? '',
+          session.notes ?? '',
+        ]
+          .map(escapeCsv)
+          .join(','),
+      );
+
+    const csv = [['Dog', 'Date', 'Training', 'Status', 'Score', 'Notes'].join(','), ...rows].join(
+      '\r\n',
+    );
+    const filename = `${filenamePart(dog.name)}-${from}-${to}-report.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
   });
 
   router.get('/dogs/:dogId/sessions/:id', (req, res) => {

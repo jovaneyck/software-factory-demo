@@ -73,6 +73,7 @@ describe('ProgressReport', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('shows error message when fetch returns non-ok response', async () => {
@@ -398,6 +399,52 @@ describe('ProgressReport', () => {
       const graph = screen.getByTestId('progress-graph');
       const dots = graph.querySelectorAll('circle.completed');
       expect(dots.length).toBe(4);
+    });
+  });
+
+  it('downloads a CSV using the selected date filter', async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn(() => 'blob:training-report');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      const urlString = String(url);
+      if (urlString === '/api/dogs') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dogs) } as Response);
+      }
+      if (urlString === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(trainings) } as Response);
+      }
+      if (urlString.includes('/api/dogs/dog-1/sessions/export')) {
+        return Promise.resolve({
+          ok: true,
+          blob: () => Promise.resolve(new Blob(['csv'])),
+          headers: { get: () => 'attachment; filename="buddy-2026-02-08-2099-12-31-report.csv"' },
+        } as unknown as Response);
+      }
+      if (urlString.includes('/api/dogs/dog-1/sessions')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(sessionsForFilter),
+        } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlString}`));
+    });
+
+    renderAt('/progress');
+    await user.click(await screen.findByText('Buddy'));
+    await user.click(await screen.findByText('Sit'));
+    await user.click(screen.getByRole('button', { name: 'Week' }));
+    await user.click(screen.getByRole('button', { name: 'Export to CSV' }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/dogs/dog-1/sessions/export?from=2026-02-08&to=2099-12-31',
+      );
+      expect(createObjectURL).toHaveBeenCalled();
+      expect(click).toHaveBeenCalled();
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:training-report');
     });
   });
 });

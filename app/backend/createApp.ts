@@ -77,7 +77,7 @@ export function createApp(dataRoot: string = path.join(process.cwd(), 'data')) {
   app.use('/api', dogRoutes(dogRepo, dogUpload));
   app.use('/api', trainingRoutes(trainingRepo, trainingUpload));
   app.use('/api', planRoutes(planRepo));
-  app.use('/api', sessionRoutes(dogRepo, sessionRepo, sessionListingService));
+  app.use('/api', sessionRoutes(dogRepo, sessionRepo, sessionListingService, trainingRepo));
 
   return app;
 }
