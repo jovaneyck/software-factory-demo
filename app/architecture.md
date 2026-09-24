@@ -1,5 +1,13 @@
 # Backend Architecture - Component Diagrams
 
+## Architecture primitives
+
+* Repositories for data-access
+* DDD aggregates for aggregate-level behavior
+* Domain services for aggregate-spanning behavior
+* Core (domain services+aggregates) gets unit tested using large-scale unit tests using in-memory adapters (repositories etc.)
+* The adapters (e.g. routes) should be thin and contain no business logic.
+
 ## Component diagram
 
 ### Dogs

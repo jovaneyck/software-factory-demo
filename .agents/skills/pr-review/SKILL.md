@@ -5,6 +5,10 @@ description: 'Review changes in a commit, PR. Do a code review. Review pending c
 
 # Rules to validate
 
+## Architecture
+
+* [architecture-violation] if the outlined architecture.md is not followed, such as including business logic in controller endpoints or routes.
+
 ## Completeness
 
 * [completeness-check] if provided with a spec, a plan, or a list of acceptance criteria, check that the changes cover all of them. If not, report the missing items as **drift** between the spec and the implementation. For acceptance criteria specifically, verify that automated tests cover the concrete scenario.
@@ -28,3 +32,4 @@ End with a single summary line listing all checked categories (e.g. "Checked: se
 * [naming-types] Mensura.Contracts.ConfigResponse should be named Mensura.Contracts.Config to be in line with the other types in the contract namespace. [INT.CIAM.Contracts.Config](./src/INT.CIAM.Contracts/Config.cs)
 * [semver-violation] Breaking API change by removing the "Issuer" property in Mensura.Contracts.ConfigResponse, but the 2.3.0 version indicates a minor version increase. [INT.CIAM.Contracts.Config](./src/INT.CIAM.Contracts/Config.cs)
 * [completeness-check] spec.md contains the acceptance criterium "splitting an empty basket is a NO-OP", but there is no test for this scenario in the code. [spec.md](./specs/202607601_split_basket/spec.md)
+* [architecture-violation] DogRoutes.ts contains business logic in the route handlers instead of delegating it to aggregates or services. [DogRoutes.ts](./src/DogRoutes.ts)
