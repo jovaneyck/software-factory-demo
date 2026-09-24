@@ -1,30 +1,30 @@
 {
-    "tiers": {
-        "foreman": "github-copilot/claude-opus-4.8",
-        "feature-owner": "openrouter/deepseek/deepseek-v4.1-flash",
-        "worker": "openrouter/deepseek/deepseek-v4.1-flash",
-        "reviewer": "openrouter/deepseek/deepseek-v4.1-flash",
-        "merger": "openrouter/deepseek/deepseek-v4.1-flash"
-    },
-    "sandbox": {
-        "enabled": true,
-        "image": "software-factory-agent:latest",
-        "contextWindow": 1048576,
-        "limits": {
-            "cpus": 2,
-            "memory": "4g",
-            "pids": 512
-        },
-        "network": "default",
-  "nodeModulesCache": {
+  "tiers": {
+    "foreman": "github-copilot/gpt-6-luna",
+    "feature-owner": "github-copilot/gpt-6-luna",
+    "worker": "github-copilot/gpt-6-luna",
+    "reviewer": "github-copilot/gpt-6-luna",
+    "merger": "github-copilot/gpt-6-luna"
+  },
+  "sandbox": {
     "enabled": true,
-    "tmpfsSize": "1g",
-    "paths": [
-      "node_modules",
-      "app/node_modules",
-      "app/backend/node_modules",
-      "app/frontend/node_modules"
-    ]
-  }
+    "image": "software-factory-agent:latest",
+    "contextWindow": 872000,
+    "limits": {
+      "cpus": 2,
+      "memory": "4g",
+      "pids": 512
+    },
+    "network": "default",
+    "nodeModulesCache": {
+      "enabled": true,
+      "tmpfsSize": "1g",
+      "paths": [
+        "node_modules",
+        "app/node_modules",
+        "app/backend/node_modules",
+        "app/frontend/node_modules"
+      ]
     }
+  }
 }
