@@ -58,6 +58,8 @@ function ProgressReport() {
   const [error, setError] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [dogData, setDogData] = useState<DogData | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
 
   useEffect(() => {
     fetch('/api/dogs')
@@ -125,6 +127,37 @@ function ProgressReport() {
     setTimeRange('all');
   }
 
+  async function exportCsv() {
+    if (!selectedDogId) return;
+    const from = getCutoffDate(timeRange) ?? '2000-01-01';
+    const to = '2099-12-31';
+    setExporting(true);
+    setExportError(false);
+
+    try {
+      const response = await fetch(
+        `/api/dogs/${selectedDogId}/sessions/export?from=${from}&to=${to}`,
+      );
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const disposition = response.headers.get('Content-Disposition');
+      const filename = disposition?.match(/filename="([^"]+)"/)?.[1];
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = filename ?? `${selectedDog?.name ?? 'dog'}-${from}-${to}-report.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (error) {
     return (
       <div>
@@ -155,7 +188,7 @@ function ProgressReport() {
               >
                 Change training
               </button>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 {TIME_RANGE_OPTIONS.map(({ label, value }) => (
                   <button
                     key={value}
@@ -169,7 +202,19 @@ function ProgressReport() {
                     {label}
                   </button>
                 ))}
+                <button
+                  onClick={exportCsv}
+                  disabled={exporting}
+                  className="rounded-full bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {exporting ? 'Exporting…' : 'Export to CSV'}
+                </button>
               </div>
+              {exportError && (
+                <p role="alert" className="mt-2 text-sm text-red-600">
+                  Could not export results. Please try again.
+                </p>
+              )}
               <ProgressGraph
                 sessions={sessions
                   .filter((s) => {

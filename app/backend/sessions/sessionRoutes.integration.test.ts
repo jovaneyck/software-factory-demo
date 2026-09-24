@@ -6,6 +6,7 @@ import { sessionRoutes } from './sessionRoutes.js';
 import { FakeDogRepository } from '../dogs/FakeDogRepository.js';
 import { FakeSessionRepository } from './FakeSessionRepository.js';
 import { FakePlanRepository } from '../plans/FakePlanRepository.js';
+import { FakeTrainingRepository } from '../trainings/FakeTrainingRepository.js';
 import { SessionListingService } from './SessionListingService.js';
 
 interface SessionResponse {
@@ -20,6 +21,7 @@ describe('Sessions API', () => {
   let dogs: FakeDogRepository;
   let sessions: FakeSessionRepository;
   let plans: FakePlanRepository;
+  let trainings: FakeTrainingRepository;
   const dogId = crypto.randomUUID();
   const trainingId = crypto.randomUUID();
 
@@ -27,10 +29,11 @@ describe('Sessions API', () => {
     dogs = new FakeDogRepository();
     sessions = new FakeSessionRepository();
     plans = new FakePlanRepository();
+    trainings = new FakeTrainingRepository();
     const service = new SessionListingService(dogs, plans, sessions);
     app = express();
     app.use(express.json());
-    app.use('/api', sessionRoutes(dogs, sessions, service));
+    app.use('/api', sessionRoutes(dogs, sessions, service, trainings));
 
     dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg' });
   });
@@ -129,6 +132,80 @@ describe('Sessions API', () => {
         .send({ trainingId, date: '2026-02-14', status: 'completed', score: 0 });
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /api/dogs/:dogId/sessions/export', () => {
+    it('exports completed and skipped results as an escaped, chronological CSV', async () => {
+      const trainingName = 'Sit, "stay"';
+      trainings.save({ id: trainingId, name: trainingName, procedure: '', tips: '' });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-11',
+        status: 'completed',
+        score: 8,
+        notes: '=1+1, "great"\nprogress',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-12',
+        status: 'skipped',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-13',
+        status: 'planned',
+      });
+
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?from=2026-02-01&to=2026-02-28`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toMatch(/text\/csv/);
+      expect(res.headers['content-disposition']).toContain(
+        'buddy-2026-02-01-2026-02-28-report.csv',
+      );
+      expect(res.text).toBe(
+        'Dog,Date,Training,Status,Score,Notes\r\n' +
+          '"Buddy","2026-02-11","Sit, ""stay""","completed","8","\'=1+1, ""great""\nprogress"\r\n' +
+          '"Buddy","2026-02-12","Sit, ""stay""","skipped","",""',
+      );
+    });
+
+    it('returns only headers when a dog has no results in the range', async () => {
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?from=2026-02-01&to=2026-02-28`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('Dog,Date,Training,Status,Score,Notes');
+    });
+
+    it('rejects invalid or reversed date ranges', async () => {
+      const invalid = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?from=2026-02-30&to=2026-03-01`,
+      );
+      expect(invalid.status).toBe(400);
+
+      const reversed = await request(app).get(
+        `/api/dogs/${dogId}/sessions/export?from=2026-03-01&to=2026-02-01`,
+      );
+      expect(reversed.status).toBe(400);
+    });
+
+    it('returns 404 when the dog does not exist', async () => {
+      const missingDogId = '00000000-0000-0000-0000-000000000000';
+      const res = await request(app).get(
+        `/api/dogs/${missingDogId}/sessions/export?from=2026-02-01&to=2026-02-28`,
+      );
+      expect(res.status).toBe(404);
     });
   });
 
