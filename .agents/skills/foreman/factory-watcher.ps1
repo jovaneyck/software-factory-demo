@@ -98,7 +98,13 @@ while ($true) {
 
         if (($state -eq "idle" -or $state -eq "done") -and $paneId) {
             Write-Host "[watcher] Poking foreman (pane $paneId)..."
-            herdr pane send-text $paneId "/factory" 2>$null | Out-Null
+            # NOTE: send an explicit instruction, NOT the bare "/factory" string.
+            # pane send-text injects raw text (no TUI slash-command expansion), and
+            # because pi auto-discovers every project skill, bare "/factory" gets
+            # semantically matched to the start-factory operator skill instead of
+            # running the foreman loop. Pin it to the foreman skill explicitly.
+            $poke = "You are the foreman. Follow ONLY your foreman skill (.agents/skills/foreman). Do NOT use the start-factory skill. Run one factory pass now: sync GitHub, reconcile, find ready work, then claim -> worktree -> spawn feature-owner -> hand off -> monitor -> report. Start now."
+            herdr pane send-text $paneId $poke 2>$null | Out-Null
             herdr pane send-keys $paneId Enter 2>$null | Out-Null
             Write-Host "[watcher] Foreman poked"
         } elseif (-not $paneId) {

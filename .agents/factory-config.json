@@ -9,6 +9,7 @@
     "sandbox": {
         "enabled": true,
         "image": "software-factory-agent:latest",
+        "contextWindow": 1048576,
         "limits": {
             "cpus": 2,
             "memory": "4g",

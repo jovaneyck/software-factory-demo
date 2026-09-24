@@ -103,6 +103,43 @@ DATA_DIR="${SOFTWARE_FACTORY_DATA_DIR:-$HOME/.software-factory}"
 RUN_PI_DIR="$DATA_DIR/runs/$RUN_ID/sandbox/pi"
 bash "$SCRIPT_DIR/prepare-pi-auth.sh" "$RUN_PI_DIR" >/dev/null
 
+# --- Optional per-model contextWindow override -------------------------------
+# The sandbox mounts a fresh ~/.pi/agent (auth+trust only), so pi has no cached
+# model catalog inside the container and falls back to a smaller default context
+# window for the worker's model. If sandbox.contextWindow is set, drop a
+# models.json with a modelOverrides.contextWindow for the resolved tier model so
+# the worker gets the full window. Splits e.g. "openrouter/deepseek/deepseek-v4.1-flash"
+# into provider=openrouter, modelId=deepseek/deepseek-v4.1-flash.
+CTX_WINDOW=$(cfg sandbox.contextWindow "")
+# Resolve the effective model: prefer the tier-resolved one, else scan args for --model.
+EFFECTIVE_MODEL="${TIER_MODEL:-}"
+if [[ -z "$EFFECTIVE_MODEL" ]]; then
+  prev=""
+  for a in "$@"; do
+    [[ "$prev" == "--model" ]] && EFFECTIVE_MODEL="$a" && break
+    prev="$a"
+  done
+fi
+if [[ -n "$CTX_WINDOW" && -n "$EFFECTIVE_MODEL" ]]; then
+  OVR_PROVIDER="${EFFECTIVE_MODEL%%/*}"
+  OVR_MODEL_ID="${EFFECTIVE_MODEL#*/}"
+  cat > "$RUN_PI_DIR/models.json" <<EOF
+{
+  "providers": {
+    "$OVR_PROVIDER": {
+      "modelOverrides": {
+        "$OVR_MODEL_ID": {
+          "contextWindow": $CTX_WINDOW
+        }
+      }
+    }
+  }
+}
+EOF
+  chmod 600 "$RUN_PI_DIR/models.json" 2>/dev/null || true
+  echo "[sandbox] contextWindow override: $OVR_PROVIDER/$OVR_MODEL_ID -> $CTX_WINDOW" >&2
+fi
+
 # --- Translate host paths for Docker Desktop bind mounts ---------------------
 # Docker Desktop wants Windows-style paths (C:/Users/...). cygpath handles the
 # MSYS -> Windows conversion; fall back to the raw path on non-Windows.

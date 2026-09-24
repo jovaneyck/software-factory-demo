@@ -55,8 +55,13 @@ while true; do
 
     if [[ "$FOREMAN_STATE" == "idle" || "$FOREMAN_STATE" == "done" ]]; then
       echo "[watcher] Poking foreman..."
+      # NOTE: send an explicit instruction, NOT the bare "/factory" string.
+      # agent prompt injects raw text (no TUI slash-command expansion), and because
+      # pi auto-discovers every project skill, bare "/factory" gets semantically
+      # matched to the start-factory operator skill instead of running the foreman
+      # loop. Pin it to the foreman skill explicitly.
       herdr agent prompt "$FOREMAN" \
-        "/factory" \
+        "You are the foreman. Follow ONLY your foreman skill (.agents/skills/foreman). Do NOT use the start-factory skill. Run one factory pass now: sync GitHub, reconcile, find ready work, then claim -> worktree -> spawn feature-owner -> hand off -> monitor -> report. Start now." \
         --wait --timeout 600000 2>/dev/null || true
       echo "[watcher] Foreman finished processing"
     else

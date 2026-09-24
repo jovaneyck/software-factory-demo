@@ -105,7 +105,7 @@ Then wait for the worker to reach a decision/handoff signal (see Step 3) with `p
 Block until the worker emits a factory signal, then read the surrounding output:
 
 ```bash
-herdr pane wait-output <worker-pane-id> --regex "FACTORY:(READY_TO_PUSH|NEEDS_CLARIFICATION|FRONTIER_CLEAR|BLOCKED)" --timeout 1800000
+herdr pane wait-output <worker-pane-id> --regex "^\s*FACTORY:(READY_TO_PUSH|NEEDS_CLARIFICATION|FRONTIER_CLEAR|BLOCKED)\s*$" --timeout 1800000
 herdr pane read <worker-pane-id> --source recent-unwrapped --lines 150
 ```
 
@@ -201,7 +201,7 @@ Parse the output for the factory signals:
 
   After the answer is handled (`github_answer` or `worker_ready`), wait for `FACTORY:READY_TO_PUSH` and do the commit + push + PR (as above). If `RESOLUTION` was already `worker_ready`, the signal is present and this returns immediately:
   ```bash
-  herdr pane wait-output <worker-pane-id> --match "FACTORY:READY_TO_PUSH" --timeout 1800000
+  herdr pane wait-output <worker-pane-id> --regex "^\s*FACTORY:READY_TO_PUSH\s*$" --timeout 1800000
   herdr pane read <worker-pane-id> --source recent-unwrapped --lines 150
   ```
 
@@ -271,7 +271,7 @@ Check only whether the reviewer found issues (keywords like "no issues", "LGTM" 
 
 ```bash
 herdr pane run <worker-pane-id> "The reviewer left feedback on PR #<pr-number>. Here are the review comments (you have no gh access, so I'm pasting them): <paste the reviewer's findings here>. Address ALL issues, then re-run tests and linter. Do NOT run git. Print FACTORY:FIXES_READY when done."
-herdr pane wait-output <worker-pane-id> --match "FACTORY:FIXES_READY" --timeout 600000
+herdr pane wait-output <worker-pane-id> --regex "^\s*FACTORY:FIXES_READY\s*$" --timeout 600000
 ```
 
 > The sandboxed worker has no `gh`, so it cannot run `gh pr view --comments`. **You** paste the reviewer's findings into the prompt.
@@ -324,7 +324,7 @@ GitHub API errors, malformed/incomplete responses, missing analysis, cancellatio
 
 ```bash
 herdr pane run <worker-pane-id> "Read artifacts/sonar-feedback.md for the current PR's SonarCloud findings published to GitHub. Fix ALL reported gate failures and code issues within this feature's scope, using the supplied feedback and local code only. Preserve behavior and explicit test scenarios; honor existing duplication exclusions. Do not change quality gates, add exclusions or suppressions, mark issues accepted, or delete/weaken tests to make analysis pass. If details are insufficient for a safe fix or a finding needs a policy change, explain why and print FACTORY:BLOCKED. Do not request or use Sonar credentials, follow report links, fetch reports, or run git. Re-run tests, build, and linter after fixing, update affected screenshots, then print FACTORY:SONAR_FIXES_READY."
-herdr pane wait-output <worker-pane-id> --regex "FACTORY:(SONAR_FIXES_READY|BLOCKED)" --timeout 600000
+herdr pane wait-output <worker-pane-id> --regex "^\s*FACTORY:(SONAR_FIXES_READY|BLOCKED)\s*$" --timeout 600000
 ```
 
 4. On fresh `FACTORY:SONAR_FIXES_READY`, verify the worker's test/build/lint results, commit the actual fixes as the host (`fix: address SonarCloud feedback`), and push. Return to the start of Step 4c for the **new SHA**. Do not assume that a fix cleared the finding or reuse the previous green result. The reviewer is not spawned again.
@@ -493,6 +493,7 @@ Include in the human-readable part:
 - **GITHUB_TOKEN.** Always set it from `gh auth token` before any `bd github` or `gh` command.
 - **Worker runs sandboxed.** Always launch the worker's `pi` via the `.cmd` shim `.\.agents\skills\feature-owner\sandbox\sandbox-run.cmd --run-id {{GITHUB_ISSUE_NUMBER}} -- pi …` (Windows/PowerShell panes); on non-Windows call `sandbox-run.sh` directly. Worker skill: `--skill .agents/skills/grill-me` only (no `beads`, no `c4-diff` — both need git/GitHub the worker doesn't have).
 - **Drive the sandboxed worker with `pane` commands, not `agent` commands.** herdr can't classify a `pi` running behind the `docker` wrapper (Windows), so `herdr agent prompt/read/rename/wait` don't work on the worker. Use `pane run` (prompt), `pane wait-output --match/--regex` (await signals), `pane read` (output), `pane send-keys` (control keys), and the **worker pane id** as the handle. The host-side reviewer and merger classify normally — use `agent` commands for them.
+- **Always wait for `FACTORY:` signals with the line-anchored, whitespace-tolerant regex `^\s*FACTORY:(...)\s*$` — never a bare substring `--match` or an unqualified `--regex`.** Two failure modes bite otherwise: (1) an **unanchored** pattern (`FACTORY:NEEDS_CLARIFICATION`) matches the worker's own *reasoning prose* ("I should print FACTORY:NEEDS_CLARIFICATION and stop") and fires before the real signal; (2) a **strictly** line-start-anchored `^FACTORY:` **never** matches, because pi's TUI renders every content line with a **leading space**, so the emitted signal line is ` FACTORY:...`, not `FACTORY:...`. The `^\s*…\s*$` form requires the token to occupy its **own line** (optionally indented) — matching the real single-line signal while ignoring mid-sentence mentions.
 - **Reviewer/merger run host-side.** Reviewer skill: `--skill .agents/skills/pr-review`. Merger skill: `--skill .agents/skills/beads`.
 - **Regenerate host-side dependency shims before reviewing (Step 4a-prep).** The worker installs deps inside the Linux sandbox, producing only Unix `.bin` symlinks; the Windows host reviewer needs `.cmd`/`.ps1` shims to run `npm test`/`npm run build`. Always run a host-side `npm install` in each JS package before spawning the reviewer, or the reviewer reviews blind (`'vitest' is not recognized`).
 - **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
