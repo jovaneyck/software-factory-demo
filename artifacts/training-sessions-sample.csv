@@ -1,0 +1,14 @@
+﻿date,dogName,dogId,trainingName,trainingId,planId,sessionId,status,score,notes
+2026-01-31,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,bd7bf450-87be-454e-8695-43f017f63440,completed,5,
+2026-02-12,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,63140c06-7d13-4a01-82ff-cdb497f17bef,completed,5,
+2026-02-13,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,f756737e-bf4f-487c-87ab-f990468f7dce,skipped,,raining cats and dogs
+2026-02-14,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,6ec12df3-fab9-418b-be19-5957788cb036,completed,7,
+2026-02-15,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Recall,1b85eaf3-1d14-4c57-9938-d1ca5fdb271a,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,011484b0-616e-4856-afb0-a1b68d21e3f5,completed,9,
+2026-02-15,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,b45abbd5-f108-4bdd-a056-b5765bb161ad,completed,6,"Lot's of pulling/shooting out to interesting smells.
+It was freezing outside, everything smells more interesting? 👃"
+2026-03-07,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Tattle training,1336fb7b-3898-4ad0-8d62-4bf50c60caa8,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,a95dbfeb-644b-48ed-8965-16ebcced1c3f,completed,8,
+2026-05-10,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,8dd4cb0d-5ed3-432f-b912-252fc81864a0,completed,8,Pretty pull-y today
+2026-05-10,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Recall,1b85eaf3-1d14-4c57-9938-d1ca5fdb271a,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,b63ff924-4881-4505-b769-9eb8bf9073e9,skipped,,
+2026-05-12,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,08815b90-04a0-4806-beac-5bfcb5844cb5,completed,3,very distracted
+2026-05-12,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Tattle training,1336fb7b-3898-4ad0-8d62-4bf50c60caa8,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,18c645eb-5791-47b4-b1e2-7252811f0fd7,skipped,,didn't have time today
+2026-05-13,Django,5b087a4d-caee-430a-bd93-5ba8b1812d9b,Leash training,a236f010-2c36-4e40-a203-061b6757ffe0,3fc6e241-1309-4a71-907c-e2f0ab6c0b6f,e7077b7a-7f2f-4236-b5fd-8aa28879e745,completed,8,"good job, squirrels distractd him a bit"

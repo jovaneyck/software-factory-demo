@@ -75,6 +75,127 @@ describe('ProgressReport', () => {
     vi.useRealTimers();
   });
 
+  describe('CSV export', () => {
+    beforeEach(() => {
+      vi.stubGlobal(
+        'URL',
+        class extends URL {
+          static createObjectURL = vi.fn(() => 'blob:session-export');
+          static revokeObjectURL = vi.fn();
+        },
+      );
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('offers no export until a dog is selected', async () => {
+      mockFetchDogsOnly();
+      renderAt('/progress');
+      await screen.findByText('Buddy');
+      expect(
+        screen.queryByRole('button', { name: /export all sessions/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('downloads the selected dog history independently of graph filters', async () => {
+      const user = userEvent.setup();
+      mockFetchAll();
+      renderAt('/progress?dog=dog-1&training=tr-1');
+      await screen.findByRole('button', { name: 'Week' });
+      await user.click(screen.getByRole('button', { name: 'Week' }));
+      const csv = new Blob(['date,status\r\n2026-01-01,completed\r\n'], { type: 'text/csv' });
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => csv,
+      } as Response);
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        expect(this.href).toBe('blob:session-export');
+        expect(this.download).toBe('training-sessions-dog-1.csv');
+      });
+
+      await user.click(screen.getByRole('button', { name: /export all sessions/i }));
+
+      expect(global.fetch).toHaveBeenLastCalledWith('/api/dogs/dog-1/sessions/export.csv');
+      expect(URL.createObjectURL).toHaveBeenCalledWith(csv);
+      expect(click).toHaveBeenCalledOnce();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:session-export');
+      expect(screen.getByTestId('progress-graph')).toBeInTheDocument();
+    });
+
+    it('allows an empty history without an assigned plan and updates the target when switching dogs', async () => {
+      const user = userEvent.setup();
+      mockFetchAll([]);
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => dogs.map(({ id, name, picture }) => ({ id, name, picture })),
+      } as Response);
+      renderAt('/progress?dog=dog-1');
+      await screen.findByRole('button', { name: /export all sessions/i });
+      await user.click(screen.getByRole('button', { name: /change dog/i }));
+      await user.click(await screen.findByText('Max'));
+      await waitFor(() =>
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/dogs/dog-2/sessions?from=2000-01-01&to=2099-12-31',
+        ),
+      );
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => new Blob(['date,status\r\n']),
+      } as Response);
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { });
+      await user.click(screen.getByRole('button', { name: /export all sessions/i }));
+      expect(global.fetch).toHaveBeenLastCalledWith('/api/dogs/dog-2/sessions/export.csv');
+    });
+
+    it.each(['http', 'network'])(
+      'shows an error and permits retry after a %s failure',
+      async (failure) => {
+        const user = userEvent.setup();
+        mockFetchAll();
+        renderAt('/progress?dog=dog-1');
+        const button = await screen.findByRole('button', { name: /export all sessions/i });
+        if (failure === 'http')
+          vi.mocked(global.fetch).mockResolvedValueOnce({ ok: false } as Response);
+        else vi.mocked(global.fetch).mockRejectedValueOnce(new Error('offline'));
+        await user.click(button);
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'Could not export sessions. Please try again.',
+        );
+        expect(button).toBeEnabled();
+        vi.mocked(global.fetch).mockResolvedValueOnce({
+          ok: true,
+          blob: async () => new Blob(['csv']),
+        } as Response);
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { });
+        await user.click(button);
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      },
+    );
+
+    it('disables repeated clicks while a download is being prepared', async () => {
+      const user = userEvent.setup();
+      mockFetchAll();
+      renderAt('/progress?dog=dog-1');
+      const button = await screen.findByRole('button', { name: /export all sessions/i });
+      let finish!: (response: Response) => void;
+      vi.mocked(global.fetch).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      await user.click(button);
+      expect(button).toBeDisabled();
+      finish({ ok: false } as Response);
+      await screen.findByRole('alert');
+      expect(button).toBeEnabled();
+    });
+  });
+
   it('shows error message when fetch returns non-ok response', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
