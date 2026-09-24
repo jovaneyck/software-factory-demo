@@ -374,4 +374,93 @@ describe('DogProfile', () => {
     expect(screen.queryByRole('link', { name: /view plan/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /unassign/i })).not.toBeInTheDocument();
   });
+
+  it('deletes the dog after confirmation and navigates to the dog list', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const deleteCall = vi.fn();
+
+    vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}` && options?.method === 'DELETE') {
+        deleteCall();
+        return Promise.resolve({ ok: true, status: 204, json: () => Promise.resolve({}) } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+          <Route path="/" element={<div>Dog List Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /delete dog/i }));
+
+    expect(confirmSpy).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText('Dog List Page')).toBeInTheDocument();
+    });
+    expect(deleteCall).toHaveBeenCalled();
+  });
+
+  it('does not delete the dog when confirmation is cancelled', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg' };
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const deleteCall = vi.fn();
+
+    vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}` && options?.method === 'DELETE') {
+        deleteCall();
+        return Promise.resolve({ ok: true, status: 204, json: () => Promise.resolve({}) } as Response);
+      }
+      if (urlStr === `/api/dogs/${DOG_ID}`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+          <Route path="/" element={<div>Dog List Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /delete dog/i }));
+
+    expect(deleteCall).not.toHaveBeenCalled();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+  });
 });

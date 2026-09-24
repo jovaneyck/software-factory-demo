@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import ProgressView from './ProgressView';
 
 interface Dog {
@@ -22,6 +22,7 @@ interface Training {
 
 function DogProfile() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [dog, setDog] = useState<Dog | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -83,6 +84,15 @@ function DogProfile() {
       const updatedDog = await res.json();
       setDog(updatedDog);
       setAssignedPlan(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!dog) return;
+    if (!window.confirm(`Delete ${dog.name}? This can't be undone.`)) return;
+    const res = await fetch(`/api/dogs/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      navigate('/');
     }
   };
 
@@ -168,6 +178,19 @@ function DogProfile() {
           </div>
         </div>
       )}
+
+      <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-red-600">Danger Zone</h3>
+        <p className="text-sm text-slate-500">
+          Permanently delete this dog and its picture. This action can't be undone.
+        </p>
+        <button
+          onClick={handleDelete}
+          className="bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors"
+        >
+          Delete Dog
+        </button>
+      </div>
     </div>
   );
 }
