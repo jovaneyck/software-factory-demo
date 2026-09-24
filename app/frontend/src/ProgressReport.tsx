@@ -107,6 +107,24 @@ function ProgressReport() {
 
   const selectedTraining = trainings.find((t) => t.id === selectedTrainingId);
 
+  const graphSessions = sessions
+    .filter((s) => {
+      if (s.trainingId !== selectedTrainingId) return false;
+      if (s.status !== 'completed' && s.status !== 'skipped') return false;
+      const cutoff = getCutoffDate(timeRange);
+      if (cutoff && s.date < cutoff) return false;
+      return true;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const exportFrom = graphSessions[0]?.date ?? getCutoffDate(timeRange) ?? '2000-01-01';
+  const exportTo =
+    graphSessions[graphSessions.length - 1]?.date ?? new Date().toISOString().slice(0, 10);
+  const exportUrl =
+    selectedDogId && selectedTrainingId
+      ? `/api/dogs/${selectedDogId}/sessions/export?from=${exportFrom}&to=${exportTo}&trainingId=${selectedTrainingId}`
+      : '';
+
   function selectDog(dogId: string) {
     setSearchParams({ dog: dogId });
   }
@@ -155,32 +173,31 @@ function ProgressReport() {
               >
                 Change training
               </button>
-              <div className="mt-3 flex gap-2">
-                {TIME_RANGE_OPTIONS.map(({ label, value }) => (
-                  <button
-                    key={value}
-                    onClick={() => setTimeRange(value)}
-                    className={`rounded-full px-3 py-1 text-sm font-medium ${
-                      timeRange === value
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex gap-2">
+                  {TIME_RANGE_OPTIONS.map(({ label, value }) => (
+                    <button
+                      key={value}
+                      onClick={() => setTimeRange(value)}
+                      className={`rounded-full px-3 py-1 text-sm font-medium ${
+                        timeRange === value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <a
+                  href={exportUrl}
+                  download
+                  className="text-sm font-medium text-blue-600 hover:underline whitespace-nowrap"
+                >
+                  Export CSV
+                </a>
               </div>
-              <ProgressGraph
-                sessions={sessions
-                  .filter((s) => {
-                    if (s.trainingId !== selectedTrainingId) return false;
-                    if (s.status !== 'completed' && s.status !== 'skipped') return false;
-                    const cutoff = getCutoffDate(timeRange);
-                    if (cutoff && s.date < cutoff) return false;
-                    return true;
-                  })
-                  .sort((a, b) => a.date.localeCompare(b.date))}
-              />
+              <ProgressGraph sessions={graphSessions} />
             </div>
           ) : (
             <div className="mt-4 grid gap-3">

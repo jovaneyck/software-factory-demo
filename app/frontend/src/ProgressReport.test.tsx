@@ -220,6 +220,51 @@ describe('ProgressReport', () => {
     expect(screen.getByRole('button', { name: /change training/i })).toBeInTheDocument();
   });
 
+  it('shows an Export CSV link scoped to the selected dog and training', async () => {
+    const user = userEvent.setup();
+    mockFetchAll();
+
+    renderAt('/progress');
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Buddy'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Sit')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Sit'));
+
+    const link = screen.getByRole('link', { name: /export csv/i });
+    const href = link.getAttribute('href') ?? '';
+    expect(href).toContain('/api/dogs/dog-1/sessions/export');
+    expect(href).toContain('trainingId=tr-1');
+    expect(href).toContain('from=2026-01-10');
+    expect(href).toContain('to=2026-01-10');
+  });
+
+  it('does not show the Export CSV link before a training is selected', async () => {
+    const user = userEvent.setup();
+    mockFetchAll();
+
+    renderAt('/progress');
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Buddy'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Sit')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('link', { name: /export csv/i })).not.toBeInTheDocument();
+  });
+
   it('renders the progress graph when a training is selected', async () => {
     const user = userEvent.setup();
     mockFetchAll();

@@ -3,13 +3,16 @@ import crypto from 'crypto';
 import type { DogRepository } from '../dogs/DogRepository.js';
 import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
+import type { TrainingRepository } from '../trainings/TrainingRepository.js';
 import type { Session } from '../shared/types.js';
-import { validateUuid } from '../shared/validateUuid.js';
+import { validateUuid, isValidUuid } from '../shared/validateUuid.js';
+import { buildSessionCsv, slugify, type SessionCsvRow } from './sessionCsv.js';
 
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  trainings: TrainingRepository,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
@@ -64,6 +67,58 @@ export function sessionRoutes(
 
     sessions.save(session as unknown as Session);
     res.status(201).json(session);
+  });
+
+  // Exports this dog's session results as CSV. Must be declared before the
+  // `/dogs/:dogId/sessions/:id` route so "export" is not parsed as a session id.
+  router.get('/dogs/:dogId/sessions/export', (req, res) => {
+    const { dogId } = req.params;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const trainingId = req.query.trainingId as string | undefined;
+
+    if (!from || !to) {
+      return res.status(400).json({ error: 'from and to query params are required' });
+    }
+
+    if (trainingId !== undefined && !isValidUuid(trainingId)) {
+      return res.status(400).json({ error: 'trainingId must be a valid UUID' });
+    }
+
+    const fromDate = new Date(`${from}T00:00:00`);
+    const toDate = new Date(`${to}T00:00:00`);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+      return res.status(400).json({ error: 'from and to must be valid dates' });
+    }
+
+    const dog = dogs.getById(dogId);
+    if (!dog) return res.status(404).json({ error: 'Dog not found' });
+
+    const result = service.list(dogId, fromDate, toDate);
+    if ('error' in result) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    const rows: SessionCsvRow[] = result.sessions
+      .filter((s) => s.status === 'completed' || s.status === 'skipped')
+      .filter((s) => trainingId === undefined || s.trainingId === trainingId)
+      .sort((a, b) => (a.date as string).localeCompare(b.date as string))
+      .map((s) => ({
+        date: s.date as string,
+        training: trainings.getById(s.trainingId as string)?.name ?? (s.trainingId as string),
+        status: s.status as string,
+        score: typeof s.score === 'number' ? s.score : undefined,
+        notes: typeof s.notes === 'string' ? s.notes : undefined,
+      }));
+
+    const csv = buildSessionCsv({ dogName: dog.name, from, to, rows });
+    const dogSlug = slugify(dog.name) || 'dog';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sessions-${dogSlug}-${from}_${to}.csv"`,
+    );
+    res.send(csv);
   });
 
   router.get('/dogs/:dogId/sessions/:id', (req, res) => {
