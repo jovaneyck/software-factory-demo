@@ -44,6 +44,31 @@ describe('FsSessionRepository', () => {
     expect(retrieved).toEqual(session);
   });
 
+  describe('getByDogId', () => {
+    it('returns all sessions for a dog regardless of date, filtering by dogId', () => {
+      const dogId = crypto.randomUUID();
+      const otherDogId = crypto.randomUUID();
+
+      const veryOld = makeSession({ dogId, date: '1999-12-31' });
+      const veryNew = makeSession({ dogId, date: '2100-01-01' });
+      const otherDog = makeSession({ dogId: otherDogId, date: '2026-02-10' });
+
+      repo.save(veryOld);
+      repo.save(veryNew);
+      repo.save(otherDog);
+
+      const results = repo.getByDogId(dogId);
+
+      expect(results).toHaveLength(2);
+      expect(results.map((s) => s.date).sort()).toEqual(['1999-12-31', '2100-01-01']);
+    });
+
+    it('returns empty array when data directory does not exist', () => {
+      const emptyRepo = new FsSessionRepository(path.join(dataDir, 'nonexistent'));
+      expect(emptyRepo.getByDogId(crypto.randomUUID())).toEqual([]);
+    });
+  });
+
   describe('getByDogIdInRange', () => {
     it('filters by dogId and date range', () => {
       const dogId = crypto.randomUUID();

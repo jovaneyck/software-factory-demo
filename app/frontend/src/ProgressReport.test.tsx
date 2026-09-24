@@ -141,6 +141,22 @@ describe('ProgressReport', () => {
     expect(screen.queryByText('Max')).not.toBeInTheDocument();
   });
 
+  it('shows an Export CSV link pointing at the export endpoint once a dog is selected', async () => {
+    const user = userEvent.setup();
+    mockFetchAll();
+
+    renderAt('/progress');
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Buddy'));
+
+    const exportLink = screen.getByRole('link', { name: /export csv/i });
+    expect(exportLink).toHaveAttribute('href', '/api/dogs/dog-1/sessions/export');
+  });
+
   it('can deselect and go back to dog list', async () => {
     const user = userEvent.setup();
     mockFetchAll();

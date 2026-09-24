@@ -1,15 +1,18 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import type { DogRepository } from '../dogs/DogRepository.js';
+import type { TrainingRepository } from '../trainings/TrainingRepository.js';
 import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
 import type { Session } from '../shared/types.js';
 import { validateUuid } from '../shared/validateUuid.js';
+import { sessionsToCsv, csvFilename } from './sessionCsv.js';
 
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  trainings: TrainingRepository,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
@@ -64,6 +67,25 @@ export function sessionRoutes(
 
     sessions.save(session as unknown as Session);
     res.status(201).json(session);
+  });
+
+  router.get('/dogs/:dogId/sessions/export', (req, res) => {
+    const { dogId } = req.params;
+    const dog = dogs.getById(dogId);
+    if (!dog) return res.status(404).json({ error: 'Dog not found' });
+
+    // Export the dog's full persisted history — only sessions with recorded
+    // progress (completed or skipped) are persisted, so no date bounds apply.
+    const recorded = sessions
+      .getByDogId(dogId)
+      .filter((s) => s.status === 'completed' || s.status === 'skipped');
+
+    const csv = sessionsToCsv(recorded, trainings.getAll());
+    const filename = csvFilename(dog.name, recorded);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
   });
 
   router.get('/dogs/:dogId/sessions/:id', (req, res) => {
