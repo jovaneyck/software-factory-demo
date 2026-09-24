@@ -13,6 +13,8 @@ import { SessionListingService } from './sessions/SessionListingService.js';
 import { healthRoutes } from './health/healthRoutes.js';
 import { dogRoutes } from './dogs/dogRoutes.js';
 import { trainingRoutes } from './trainings/trainingRoutes.js';
+import { SurpriseTrainingService } from './trainings/SurpriseTrainingService.js';
+import { surpriseTrainingRoutes } from './trainings/surpriseTrainingRoutes.js';
 import { planRoutes } from './plans/planRoutes.js';
 import { sessionRoutes } from './sessions/sessionRoutes.js';
 
@@ -34,6 +36,7 @@ export function createApp(dataRoot: string = path.join(process.cwd(), 'data')) {
 
   // Services
   const sessionListingService = new SessionListingService(dogRepo, planRepo, sessionRepo);
+  const surpriseTrainingService = new SurpriseTrainingService(trainingRepo, sessionRepo);
 
   // Multer storage
   const dogStorage = multer.diskStorage({
@@ -76,6 +79,7 @@ export function createApp(dataRoot: string = path.join(process.cwd(), 'data')) {
   app.use('/api', healthRoutes());
   app.use('/api', dogRoutes(dogRepo, dogUpload));
   app.use('/api', trainingRoutes(trainingRepo, trainingUpload));
+  app.use('/api', surpriseTrainingRoutes(dogRepo, surpriseTrainingService));
   app.use('/api', planRoutes(planRepo));
   app.use('/api', sessionRoutes(dogRepo, sessionRepo, sessionListingService));
 
