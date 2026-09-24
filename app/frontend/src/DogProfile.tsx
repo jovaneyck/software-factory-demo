@@ -115,7 +115,15 @@ function DogProfile() {
         <span>←</span> <span>Back</span>
       </Link>
 
-      <h2 className="text-2xl font-bold text-slate-800">{dog.name}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold text-slate-800">{dog.name}</h2>
+        <a
+          href={`/api/dogs/${dog.id}/sessions.csv`}
+          className="shrink-0 text-sm font-medium text-blue-600 hover:text-blue-800"
+        >
+          Export CSV
+        </a>
+      </div>
 
       <img
         src={`/uploads/dogs/${dog.picture}`}

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import type { DogRepository } from '../dogs/DogRepository.js';
 import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
+import type { SessionCsvExporter } from './SessionCsvExporter.js';
 import type { Session } from '../shared/types.js';
 import { validateUuid } from '../shared/validateUuid.js';
 
@@ -10,6 +11,7 @@ export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  exporter: SessionCsvExporter,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
@@ -64,6 +66,23 @@ export function sessionRoutes(
 
     sessions.save(session as unknown as Session);
     res.status(201).json(session);
+  });
+
+  router.get('/dogs/:dogId/sessions.csv', (req, res) => {
+    const { dogId } = req.params;
+    const { from, to } = req.query;
+
+    const fromDate = from ? new Date(`${from}T00:00:00`) : new Date('2000-01-01T00:00:00');
+    const toDate = to ? new Date(`${to}T00:00:00`) : new Date('2099-12-31T00:00:00');
+
+    const result = exporter.export(dogId, fromDate, toDate);
+    if ('error' in result) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.csv);
   });
 
   router.get('/dogs/:dogId/sessions/:id', (req, res) => {

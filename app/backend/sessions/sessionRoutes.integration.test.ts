@@ -6,7 +6,9 @@ import { sessionRoutes } from './sessionRoutes.js';
 import { FakeDogRepository } from '../dogs/FakeDogRepository.js';
 import { FakeSessionRepository } from './FakeSessionRepository.js';
 import { FakePlanRepository } from '../plans/FakePlanRepository.js';
+import { FakeTrainingRepository } from '../trainings/FakeTrainingRepository.js';
 import { SessionListingService } from './SessionListingService.js';
+import { SessionCsvExporter } from './SessionCsvExporter.js';
 
 interface SessionResponse {
   id?: string;
@@ -20,6 +22,7 @@ describe('Sessions API', () => {
   let dogs: FakeDogRepository;
   let sessions: FakeSessionRepository;
   let plans: FakePlanRepository;
+  let trainings: FakeTrainingRepository;
   const dogId = crypto.randomUUID();
   const trainingId = crypto.randomUUID();
 
@@ -27,12 +30,15 @@ describe('Sessions API', () => {
     dogs = new FakeDogRepository();
     sessions = new FakeSessionRepository();
     plans = new FakePlanRepository();
+    trainings = new FakeTrainingRepository();
     const service = new SessionListingService(dogs, plans, sessions);
+    const exporter = new SessionCsvExporter(dogs, trainings, sessions);
     app = express();
     app.use(express.json());
-    app.use('/api', sessionRoutes(dogs, sessions, service));
+    app.use('/api', sessionRoutes(dogs, sessions, service, exporter));
 
     dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg' });
+    trainings.save({ id: trainingId, name: 'Sit', procedure: '', tips: '' });
   });
 
   describe('POST /api/dogs/:dogId/sessions', () => {
@@ -411,6 +417,147 @@ describe('Sessions API', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(1);
       expect(res.body[0].dogId).toBe(dogId);
+    });
+  });
+
+  describe('GET /api/dogs/:dogId/sessions.csv', () => {
+    it('returns a CSV attachment with recorded sessions', async () => {
+      const secondTrainingId = crypto.randomUUID();
+      trainings.save({ id: secondTrainingId, name: 'Stay', procedure: '', tips: '' });
+
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-10',
+        status: 'completed',
+        score: 8,
+        notes: 'Good boy',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId: secondTrainingId,
+        date: '2026-02-12',
+        status: 'skipped',
+      });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions.csv`);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('text/csv');
+      expect(res.headers['content-disposition']).toContain('buddy-sessions.csv');
+
+      const lines = res.text.replace('\uFEFF', '').trim().split('\r\n');
+      expect(lines[0]).toBe('Date,Training,Status,Score,Notes');
+      expect(lines[1]).toBe('2026-02-10,Sit,completed,8,Good boy');
+      expect(lines[2]).toBe('2026-02-12,Stay,skipped,,');
+    });
+
+    it('filters sessions by from/to query params', async () => {
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-10',
+        status: 'completed',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-20',
+        status: 'completed',
+      });
+
+      const res = await request(app).get(
+        `/api/dogs/${dogId}/sessions.csv?from=2026-02-01&to=2026-02-15`,
+      );
+
+      const lines = res.text.replace('\uFEFF', '').trim().split('\r\n');
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain('2026-02-10');
+    });
+
+    it('escapes commas, quotes and newlines in notes', async () => {
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-10',
+        status: 'completed',
+        notes: 'Great, he said "woof"\nthen sat',
+      });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions.csv`);
+
+      expect(res.text).toContain('"Great, he said ""woof""\nthen sat"');
+    });
+
+    it('returns only the header row when the dog has no sessions', async () => {
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions.csv`);
+
+      expect(res.status).toBe(200);
+      expect(res.text.replace('\uFEFF', '').trim()).toBe('Date,Training,Status,Score,Notes');
+    });
+
+    it('returns 404 for a non-existent dog', async () => {
+      const fakeDogId = '00000000-0000-0000-0000-000000000000';
+      const res = await request(app).get(`/api/dogs/${fakeDogId}/sessions.csv`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 400 when dogId is not a valid UUID', async () => {
+      const res = await request(app).get('/api/dogs/not-a-uuid/sessions.csv');
+      expect(res.status).toBe(400);
+    });
+
+    it('neutralises formula injection when opened in a spreadsheet', async () => {
+      const maliciousTrainingId = crypto.randomUUID();
+      trainings.save({
+        id: maliciousTrainingId,
+        name: '=HYPERLINK("http://evil")',
+        procedure: '',
+        tips: '',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId: maliciousTrainingId,
+        date: '2026-02-10',
+        status: 'completed',
+        notes: '@SUM(1+1)',
+      });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions.csv`);
+
+      expect(res.text).toContain(`'=HYPERLINK(""http://evil"")`);
+      expect(res.text).toContain("'@SUM(1+1)");
+    });
+
+    it('does not include sessions belonging to another dog', async () => {
+      const dog2Id = crypto.randomUUID();
+      dogs.save({ id: dog2Id, name: 'Rex', picture: 'rex.jpg' });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        date: '2026-02-10',
+        status: 'completed',
+      });
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId: dog2Id,
+        trainingId,
+        date: '2026-02-11',
+        status: 'completed',
+      });
+
+      const res = await request(app).get(`/api/dogs/${dogId}/sessions.csv`);
+      const lines = res.text.replace('\uFEFF', '').trim().split('\r\n');
+      expect(lines).toHaveLength(2);
+      expect(res.text).toContain('2026-02-10');
+      expect(res.text).not.toContain('2026-02-11');
     });
   });
 
