@@ -10,7 +10,7 @@ export interface TrainingProgressCsv {
 const csvCell = (value: string | number | undefined): string => {
   const text = value === undefined ? '' : String(value);
   const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text;
-  return `"${safeText.replace(/"/g, '""')}"`;
+  return `"${safeText.replaceAll('"', '""')}"`;
 };
 
 const filenameForDog = (name: string): string => {
