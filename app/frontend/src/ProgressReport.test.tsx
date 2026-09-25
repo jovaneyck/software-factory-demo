@@ -73,6 +73,8 @@ describe('ProgressReport', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('shows error message when fetch returns non-ok response', async () => {
@@ -399,5 +401,32 @@ describe('ProgressReport', () => {
       const dots = graph.querySelectorAll('circle.completed');
       expect(dots.length).toBe(4);
     });
+  });
+
+  it('downloads a CSV for the selected dog and training using the active time range', async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn(() => 'blob:progress-csv');
+    const filenames: string[] = [];
+    vi.stubGlobal('URL', {
+      createObjectURL,
+      revokeObjectURL: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      filenames.push(this.download);
+    });
+    mockFetchAll(sessionsForFilter);
+
+    renderAt('/progress');
+
+    await waitFor(() => {
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+    });
+    await user.click(screen.getByText('Buddy'));
+    await user.click(await screen.findByText('Sit'));
+    await user.click(screen.getByRole('button', { name: 'Year' }));
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(filenames).toEqual(['progress-buddy-sit-year.csv']);
   });
 });

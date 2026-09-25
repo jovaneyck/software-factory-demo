@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ProgressGraph from './ProgressGraph';
 import DogTile from './DogTile';
+import { buildProgressCsv } from './progressCsv';
 
 type TimeRange = 'all' | 'year' | 'month' | 'week';
 
@@ -18,6 +19,10 @@ function getCutoffDate(range: TimeRange): string | null {
   const days = range === 'year' ? 365 : range === 'month' ? 30 : 7;
   now.setDate(now.getDate() - days);
   return now.toISOString().slice(0, 10);
+}
+
+function filenamePart(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'unknown';
 }
 
 interface Dog {
@@ -106,6 +111,30 @@ function ProgressReport() {
   const relevantTrainings = trainings.filter((t) => relevantTrainingIds.includes(t.id));
 
   const selectedTraining = trainings.find((t) => t.id === selectedTrainingId);
+  const cutoff = getCutoffDate(timeRange);
+  const filteredSessions = sessions
+    .filter((session) => {
+      if (session.trainingId !== selectedTrainingId) return false;
+      if (session.status !== 'completed' && session.status !== 'skipped') return false;
+      if (cutoff && session.date < cutoff) return false;
+      return true;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  function exportCsv() {
+    if (!selectedDog || !selectedTraining) return;
+
+    const csv = buildProgressCsv(filteredSessions, selectedDog.name, selectedTraining.name);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `progress-${filenamePart(selectedDog.name)}-${filenamePart(selectedTraining.name)}-${timeRange}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   function selectDog(dogId: string) {
     setSearchParams({ dog: dogId });
@@ -170,17 +199,15 @@ function ProgressReport() {
                   </button>
                 ))}
               </div>
-              <ProgressGraph
-                sessions={sessions
-                  .filter((s) => {
-                    if (s.trainingId !== selectedTrainingId) return false;
-                    if (s.status !== 'completed' && s.status !== 'skipped') return false;
-                    const cutoff = getCutoffDate(timeRange);
-                    if (cutoff && s.date < cutoff) return false;
-                    return true;
-                  })
-                  .sort((a, b) => a.date.localeCompare(b.date))}
-              />
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={filteredSessions.length === 0}
+                className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                Export CSV
+              </button>
+              <ProgressGraph sessions={filteredSessions} />
             </div>
           ) : (
             <div className="mt-4 grid gap-3">
