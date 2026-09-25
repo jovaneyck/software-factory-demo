@@ -13,7 +13,7 @@ function escapeCell(value: string | number | undefined): string {
     text = `'${text}`;
   }
 
-  return `"${text.replace(/"/g, '""')}"`;
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 export function buildProgressCsv(
