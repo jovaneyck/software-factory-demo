@@ -215,9 +215,11 @@ Once a PR exists, spawn a reviewer. The reviewer is **not sandboxed** — it onl
 
 ### 4a-prep — Regenerate host-side dependency shims (Windows sandbox/host mismatch)
 
-The worker installed dependencies **inside the Linux Docker sandbox**, so `node_modules/.bin/` contains only Unix symlinks (e.g. `vitest -> ../vitest/vitest.mjs`) — **no `.cmd`/`.ps1` shims**. The reviewer runs **host-side on Windows**, where `npm test`/`npm run build` shell out via `cmd.exe`, which can only launch `*.cmd` shims. Without this step the reviewer hits `'vitest' is not recognized` and cannot actually run tests/build (it would review blind).
+The worker installed dependencies **inside the Linux Docker sandbox**, so `node_modules/.bin/` contains only Unix symlinks (e.g. `vite -> ../vite/bin/vite.js`) — **no `.cmd`/`.ps1` shims**. The preview app (Step 5b) runs **host-side on Windows**, where npm scripts shell out via `cmd.exe`, which can only launch `*.cmd` shims. Without this step the preview fails with `'vite' is not recognized`.
 
-Run a host-side `npm install` in each JS package the reviewer will test **and** that the preview app (Step 5b) runs from. This regenerates the Windows shims against the already-present packages (fast — nothing new to download):
+> The reviewer does **not** run tests/build/lint — CI does that on the PR. This step exists only for the host-side preview app.
+
+Run a host-side `npm install` in each JS package the preview app (Step 5b) runs from. This regenerates the Windows shims against the already-present packages (fast — nothing new to download):
 
 ```bash
 # For each package with a package.json (backend + frontend). Adjust paths to the repo.
@@ -270,7 +272,7 @@ Check only whether the reviewer found issues (keywords like "no issues", "LGTM" 
 **If issues found:** Run **one** worker fix pass (the worker edits files only — no git):
 
 ```bash
-herdr pane run <worker-pane-id> "The reviewer left feedback on PR #<pr-number>. Here are the review comments (you have no gh access, so I'm pasting them): <paste the reviewer's findings here>. Address ALL issues, then re-run tests and linter. Do NOT run git. Print FACTORY:FIXES_READY when done."
+herdr pane run <worker-pane-id> "The reviewer left feedback on PR #<pr-number>. Here are the review comments (you have no gh access, so I'm pasting them): <paste the reviewer's findings here>. Address ALL issues, then re-run tests and linter locally (do not add test output to the PR). Do NOT run git. Print FACTORY:FIXES_READY when done."
 herdr pane wait-output <worker-pane-id> --regex "^\s*FACTORY:FIXES_READY\s*$" --timeout 600000
 ```
 
@@ -394,7 +396,7 @@ If it never comes up, read the two preview panes (`herdr pane read <id> --source
 
 ## Step 5c — Assemble and publish the PR body
 
-Now **re-assemble the PR body with the deterministic script** (with `artifacts/diff.component.md` present it splices the C4 diff into an `## Architecture Changes` section between Summary and Test Output, re-embeds the committed screenshots, and adds a `## Try It Live` section for the preview URL). Do **not** hand-splice into a `/tmp` file — that step used to be skipped and the diff never reached the PR:
+Now **re-assemble the PR body with the deterministic script** (with `artifacts/diff.component.md` present it splices the C4 diff into an `## Architecture Changes` section between Summary and Lint Output, strips any `## Test Output` section (CI reports tests), re-embeds the committed screenshots, and adds a `## Try It Live` section for the preview URL). Do **not** hand-splice into a `/tmp` file — that step used to be skipped and the diff never reached the PR:
 
 ```bash
 export GITHUB_TOKEN=$(gh auth token)
@@ -404,7 +406,7 @@ PR_BODY=$(node .agents/skills/foreman/factory-pr-body.js \
 gh pr edit <pr-number> --repo {{OWNER_REPO}} --body-file "$PR_BODY"
 ```
 
-The script prints to stderr `architecture: spliced C4 diff before Test Output` and `preview: spliced Try It Live (<url>)` on success — if instead it says `no diff at ...`, the c4-diff step didn't produce `artifacts/diff.component.md`; fix that before editing the PR. Verify on GitHub that the Mermaid diagram, the screenshot images, **and** the preview URL all render.
+The script prints to stderr `architecture: spliced C4 diff before Lint Output` and `preview: spliced Try It Live (<url>)` on success — if instead it says `no diff at ...`, the c4-diff step didn't produce `artifacts/diff.component.md`; fix that before editing the PR. Verify on GitHub that the Mermaid diagram, the screenshot images, **and** the preview URL all render.
 
 ## Step 6 — Cost report and status update
 
@@ -477,7 +479,7 @@ Include in the human-readable part:
 - Live preview URL (or why it could not be started), and that it stays up until the `preview-*` tabs are closed
 - Review outcome (e.g. "LGTM on first review", or "review found issues — one fix pass applied, not re-reviewed")
 - Review summary (what the reviewer found, what the fix pass changed)
-- Final test/lint status
+- Final lint status (test results come from CI on the PR, not from the worker)
 - SonarCloud checked head SHA, GitHub check link, conclusion, GitHub-published findings count, fix-pass count, and any remaining blockers or visibility limitations (GitHub-only verification)
 - Whether a fix pass was applied (and that it was not re-reviewed)
 
@@ -495,7 +497,8 @@ Include in the human-readable part:
 - **Drive the sandboxed worker with `pane` commands, not `agent` commands.** herdr can't classify a `pi` running behind the `docker` wrapper (Windows), so `herdr agent prompt/read/rename/wait` don't work on the worker. Use `pane run` (prompt), `pane wait-output --match/--regex` (await signals), `pane read` (output), `pane send-keys` (control keys), and the **worker pane id** as the handle. The host-side reviewer and merger classify normally — use `agent` commands for them.
 - **Always wait for `FACTORY:` signals with the line-anchored, whitespace-tolerant regex `^\s*FACTORY:(...)\s*$` — never a bare substring `--match` or an unqualified `--regex`.** Two failure modes bite otherwise: (1) an **unanchored** pattern (`FACTORY:NEEDS_CLARIFICATION`) matches the worker's own *reasoning prose* ("I should print FACTORY:NEEDS_CLARIFICATION and stop") and fires before the real signal; (2) a **strictly** line-start-anchored `^FACTORY:` **never** matches, because pi's TUI renders every content line with a **leading space**, so the emitted signal line is ` FACTORY:...`, not `FACTORY:...`. The `^\s*…\s*$` form requires the token to occupy its **own line** (optionally indented) — matching the real single-line signal while ignoring mid-sentence mentions.
 - **Reviewer/merger run host-side.** Reviewer skill: `--skill .agents/skills/pr-review`. Merger skill: `--skill .agents/skills/beads`.
-- **Regenerate host-side dependency shims before reviewing (Step 4a-prep).** The worker installs deps inside the Linux sandbox, producing only Unix `.bin` symlinks; the Windows host reviewer needs `.cmd`/`.ps1` shims to run `npm test`/`npm run build`. Always run a host-side `npm install` in each JS package before spawning the reviewer, or the reviewer reviews blind (`'vitest' is not recognized`).
+- **No test re-runs by the reviewer, no test output in the PR.** CI runs the tests on every PR. The reviewer only reviews the diff statically, and the PR body has no `## Test Output` section (`factory-pr-body.js` strips one if it shows up).
+- **Regenerate host-side dependency shims before the preview (Step 4a-prep).** The worker installs deps inside the Linux sandbox, producing only Unix `.bin` symlinks; the Windows host preview app needs `.cmd`/`.ps1` shims. Always run a host-side `npm install` in each JS package before starting the preview.
 - **Intelligence tiers.** Always pass `--model` from `.agents/factory-config.json` when spawning agents.
 - **Config reads use `node`, not `jq`** — via `sandbox/config-get.sh` (jq isn't reliably on the pane PATH).
 - **Focus.** Always use `--no-focus` when spawning subagents.

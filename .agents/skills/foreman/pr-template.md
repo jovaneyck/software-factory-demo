@@ -4,12 +4,6 @@ Closes {{GITHUB_ISSUE_URL}}
 
 {{SUMMARY}}
 
-## Test Output
-
-```
-{{TEST_OUTPUT}}
-```
-
 ## Lint Output
 
 ```

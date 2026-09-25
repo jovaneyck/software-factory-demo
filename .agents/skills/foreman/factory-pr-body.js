@@ -8,7 +8,8 @@
 //      links — enumerating the screenshots that are really committed under
 //      artifacts/screenshots/ (NOT trusting the worker's often-wrong paths/names).
 //   2. Splices the C4 component diff (artifacts/diff.component.md) into an
-//      ## Architecture Changes section, between Summary and Test Output.
+//      ## Architecture Changes section, between Summary and Lint Output.
+//      Any ## Test Output section is stripped: CI reports test results, not the PR body.
 //   3. Splices a ## Try It Live section with the running preview URL (--preview-url).
 //   4. Writes the result to a file for `gh pr create/edit --body-file`.
 //
@@ -100,7 +101,14 @@ if (shots.length > 0) {
   console.error('screenshots: none committed under artifacts/screenshots/ (leaving section as-is)');
 }
 
-// --- splice the C4 diff between Summary and Test Output ---
+// --- strip any Test Output section: CI owns test results, not the PR body ---
+const testSection = /\n#{1,6}\s*Test Output[\s\S]*?(?=\n#{1,6}\s|\n*$)/i;
+if (testSection.test('\n' + body)) {
+  body = ('\n' + body).replace(testSection, '').replace(/^\n/, '');
+  console.error('tests: stripped Test Output section (CI reports test results)');
+}
+
+// --- splice the C4 diff between Summary and Lint Output ---
 if (fs.existsSync(diffPath)) {
   let diff = fs.readFileSync(diffPath, 'utf8').replace(/\r\n/g, '\n').trim();
   // demote a leading top-level "# ..." title to fit under our ## section
@@ -109,12 +117,12 @@ if (fs.existsSync(diffPath)) {
   if (/##\s*Architecture Changes/i.test(body)) {
     body = body.replace(/\n##\s*Architecture Changes[\s\S]*?(?=\n#{1,6}\s|\n*$)/i, section);
     console.error('architecture: replaced existing C4 diff section');
-  } else if (/\n#{1,6}\s*Test Output/i.test(body)) {
-    body = body.replace(/\n(#{1,6}\s*Test Output)/i, `${section}\n$1`);
-    console.error('architecture: spliced C4 diff before Test Output');
+  } else if (/\n#{1,6}\s*Lint Output/i.test(body)) {
+    body = body.replace(/\n(#{1,6}\s*Lint Output)/i, `${section}\n$1`);
+    console.error('architecture: spliced C4 diff before Lint Output');
   } else {
     body = body.trimEnd() + '\n' + section;
-    console.error('architecture: appended C4 diff (no Test Output anchor found)');
+    console.error('architecture: appended C4 diff (no Lint Output anchor found)');
   }
 } else {
   console.error(`architecture: no diff at ${diffPath} (skipping C4 section)`);
@@ -133,8 +141,8 @@ if (previewUrl) {
   if (/\n##\s*Try It Live/i.test(body)) {
     body = body.replace(/\n##\s*Try It Live[\s\S]*?(?=\n#{1,6}\s|\n*$)/i, section);
     console.error('preview: replaced existing Try It Live section');
-  } else if (/\n#{1,6}\s*(Architecture Changes|Test Output)/i.test(body)) {
-    body = body.replace(/\n(#{1,6}\s*(?:Architecture Changes|Test Output))/i, `${section}\n$1`);
+  } else if (/\n#{1,6}\s*(Architecture Changes|Lint Output)/i.test(body)) {
+    body = body.replace(/\n(#{1,6}\s*(?:Architecture Changes|Lint Output))/i, `${section}\n$1`);
     console.error(`preview: spliced Try It Live (${previewUrl})`);
   } else {
     body = body.trimEnd() + '\n' + section;

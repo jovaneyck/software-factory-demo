@@ -108,7 +108,7 @@ flowchart TD
 | **foreman** | The **backlog** | No | `foreman`, `herdr`, `beads`, `feature-owner`, `c4-diff` | Sync GitHub → reconcile → triage → claim → create worktree → dispatch a feature-owner. Never touches individual implementation. |
 | **feature-owner** | **One issue** | No (host) | `feature-owner`, `herdr`, `beads`, `c4-diff` | Orchestrate the whole lifecycle of one issue. The **only GitHub actor**: every push/PR/label/bd mutation. |
 | **worker** | Implementation | **Yes** | `grill-me` only | Grill the spec, implement, run tests, take screenshots. Edits files only — **no git, no commits**. Hands off via signals. |
-| **reviewer** | Review | No (host) | `pr-review` | Read the diff, run tests/build, post a review comment. Runs **once** (single round). |
+| **reviewer** | Review | No (host) | `pr-review` | Read the diff (static review only — **no** tests/build, CI owns that), post a review comment. Runs **once** (single round). |
 | **merger** | Merge | No (host) | `beads` | Only if auto-merge authorized: merge the PR, close the beads issue. |
 
 **Why the split:** the foreman stays at the backlog level so it can fan out many features in

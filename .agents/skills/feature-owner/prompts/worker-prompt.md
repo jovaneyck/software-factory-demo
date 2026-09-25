@@ -52,7 +52,7 @@ You have the grill-me skill loaded. Use it now.
 
 Collect evidence that the change works. This goes into the PR body.
 
-1. **Tests**: Run `npm test` from the `app/` directory. Capture the full output (last 20 lines are enough for the PR).
+1. **Tests**: Run `npm test` from the `app/` directory and make sure it passes. Do **not** paste test output into the PR body — CI runs the tests and reports results on the PR.
 2. **Linter**: Run `npm run lint` from the `app/` directory. Capture the full output.
 3. **Screenshots** (if frontend files were changed): Capture **every** screen your change touches, not just one. Before capturing, enumerate all impacted routes/screens:
    - The screen you directly edited (e.g. the page with the new button/field).
@@ -96,8 +96,8 @@ Collect evidence that the change works. This goes into the PR body.
 1. Build the PR body from the template at `.agents/skills/foreman/pr-template.md` and write it to `artifacts/pr-body.md` (create the `artifacts/` dir if needed). Fill the placeholders:
    - `{{GITHUB_ISSUE_URL}}` — the full GitHub issue URL
    - `{{SUMMARY}}` — one-line description of the change
-   - `{{TEST_OUTPUT}}` — last 20 lines of `npm test` output
    - `{{LINT_OUTPUT}}` — lint output (or "Clean — no warnings or errors.")
+   - Do **not** add a test output/results section — CI reports tests on the PR.
    - `{{SCREENSHOTS}}` — if you captured screenshots, list **every** one (one line per impacted screen) as `artifacts/screenshots/<filename> — <caption>` (use the real path under `artifacts/screenshots/`). When a change spans multiple screens (e.g. a new button plus the screen it links to), list all of them. The feature-owner turns these into commit-pinned image links after it commits (you don't know the commit SHA — it doesn't exist yet). If no frontend work, write "N/A — backend-only change."
 2. Print `FACTORY:READY_TO_PUSH` on its own line. Stop. The feature-owner commits your files, pushes, and opens the PR.
 
