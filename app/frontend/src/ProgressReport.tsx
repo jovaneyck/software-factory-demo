@@ -140,7 +140,7 @@ function ProgressReport() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(downloadUrl);
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
     } catch {
       setExportError(true);
     } finally {
