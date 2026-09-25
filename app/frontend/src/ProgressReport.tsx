@@ -58,6 +58,8 @@ function ProgressReport() {
   const [error, setError] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [dogData, setDogData] = useState<DogData | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
 
   useEffect(() => {
     fetch('/api/dogs')
@@ -120,6 +122,32 @@ function ProgressReport() {
     setSearchParams({ dog: selectedDogId!, training: trainingId });
   }
 
+  async function exportProgress() {
+    if (!selectedDogId || !selectedDog) return;
+
+    setExporting(true);
+    setExportError(false);
+    try {
+      const response = await fetch(`/api/dogs/${selectedDogId}/progress.csv`);
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const disposition = response.headers.get('content-disposition');
+      link.href = downloadUrl;
+      link.download = disposition?.match(/filename="([^"]+)"/)?.[1] ?? 'training-progress.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function deselectTraining() {
     setSearchParams({ dog: selectedDogId! });
     setTimeRange('all');
@@ -142,9 +170,23 @@ function ProgressReport() {
       {selectedDog ? (
         <div className="mt-4">
           <p className="text-lg font-semibold">{selectedDog.name}</p>
-          <button onClick={deselectDog} className="mt-2 text-sm text-blue-600 hover:underline">
-            Change dog
-          </button>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button onClick={deselectDog} className="text-sm text-blue-600 hover:underline">
+              Change dog
+            </button>
+            <button
+              onClick={exportProgress}
+              disabled={exporting}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {exporting ? 'Exporting…' : 'Export CSV'}
+            </button>
+          </div>
+          {exportError && (
+            <p role="alert" className="mt-2 text-sm text-red-600">
+              Could not export progress. Please try again.
+            </p>
+          )}
 
           {selectedTraining ? (
             <div className="mt-4">
