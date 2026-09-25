@@ -51,6 +51,13 @@ function mockFetchDogsOnly() {
 function mockFetchAll(sessionData = sessions) {
   vi.spyOn(global, 'fetch').mockImplementation((url) => {
     const urlStr = String(url);
+    if (urlStr.endsWith('/progress.csv')) {
+      return Promise.resolve({
+        ok: true,
+        headers: { get: () => 'attachment; filename="buddy-training-progress.csv"' },
+        blob: () => Promise.resolve(new Blob(['csv data'], { type: 'text/csv' })),
+      } as Response);
+    }
     if (urlStr === '/api/dogs') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(dogs) } as Response);
     }
@@ -139,6 +146,62 @@ describe('ProgressReport', () => {
 
     expect(screen.getByText(/Buddy/)).toBeInTheDocument();
     expect(screen.queryByText('Max')).not.toBeInTheDocument();
+  });
+
+  it('exports all progress for the selected dog as a CSV download', async () => {
+    const user = userEvent.setup();
+    mockFetchAll();
+    const originalCreateObjectURL = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+    const originalRevokeObjectURL = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:progress.csv'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    renderAt('/progress');
+
+    await waitFor(() => expect(screen.getByText('Buddy')).toBeInTheDocument());
+    await user.click(screen.getByText('Buddy'));
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/dogs/dog-1/progress.csv');
+      expect(clickSpy).toHaveBeenCalled();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    if (originalCreateObjectURL) {
+      Object.defineProperty(URL, 'createObjectURL', originalCreateObjectURL);
+    } else {
+      delete (URL as unknown as { createObjectURL?: unknown }).createObjectURL;
+    }
+    if (originalRevokeObjectURL) {
+      Object.defineProperty(URL, 'revokeObjectURL', originalRevokeObjectURL);
+    } else {
+      delete (URL as unknown as { revokeObjectURL?: unknown }).revokeObjectURL;
+    }
+  });
+
+  it('shows an error if the progress CSV cannot be fetched', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      if (String(url).endsWith('/progress.csv')) {
+        return Promise.resolve({ ok: false } as Response);
+      }
+      if (String(url) === '/api/dogs') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dogs) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+    });
+
+    renderAt('/progress');
+    await waitFor(() => expect(screen.getByText('Buddy')).toBeInTheDocument());
+    await user.click(screen.getByText('Buddy'));
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not export progress/i);
   });
 
   it('can deselect and go back to dog list', async () => {

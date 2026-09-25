@@ -12,6 +12,14 @@ export class FsSessionRepository implements SessionRepository {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   }
 
+  getByDogId(dogId: string): Session[] {
+    if (!fs.existsSync(this.dataDir)) return [];
+    const files = fs.readdirSync(this.dataDir).filter((f) => f.endsWith('.json'));
+    return files
+      .map((file) => JSON.parse(fs.readFileSync(path.join(this.dataDir, file), 'utf-8')) as Session)
+      .filter((session) => session.dogId === dogId);
+  }
+
   getByDogIdInRange(dogId: string, from: Date, to: Date): Session[] {
     if (!fs.existsSync(this.dataDir)) return [];
     const results: Session[] = [];
