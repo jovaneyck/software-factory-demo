@@ -10,6 +10,7 @@ interface Dog {
 
 function DogList() {
   const [dogs, setDogs] = useState<Dog[]>([]);
+  const [hasTrainings, setHasTrainings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -27,6 +28,23 @@ function DogList() {
         setError(true);
         setLoading(false);
       });
+  }, []);
+
+  // Loaded independently so a failure here can never blank the dog list —
+  // it only hides the optional "Surprise me" actions.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/trainings')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled) setHasTrainings(Array.isArray(data) && data.length > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setHasTrainings(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
@@ -69,7 +87,20 @@ function DogList() {
       </div>
       <div className="space-y-3">
         {dogs.map((dog) => (
-          <DogTile key={dog.id} dog={dog} to={`/dogs/${dog.id}`} />
+          <div key={dog.id} className="flex items-stretch gap-2">
+            <div className="flex-1 min-w-0">
+              <DogTile dog={dog} to={`/dogs/${dog.id}`} />
+            </div>
+            {hasTrainings && (
+              <Link
+                to={`/dogs/${dog.id}?surprise=1`}
+                aria-label={`Surprise me for ${dog.name}`}
+                className="shrink-0 flex items-center bg-purple-600 text-white px-4 rounded-2xl text-sm font-medium hover:bg-purple-700 transition-colors"
+              >
+                Surprise me
+              </Link>
+            )}
+          </div>
         ))}
       </div>
     </div>

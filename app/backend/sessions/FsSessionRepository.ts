@@ -12,6 +12,11 @@ export class FsSessionRepository implements SessionRepository {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   }
 
+  getByDogId(dogId: string): Session[] {
+    // Reuse the range query so the file-scanning logic is not duplicated.
+    return this.getByDogIdInRange(dogId, new Date('0000-01-01'), new Date('9999-12-31'));
+  }
+
   getByDogIdInRange(dogId: string, from: Date, to: Date): Session[] {
     if (!fs.existsSync(this.dataDir)) return [];
     const results: Session[] = [];
