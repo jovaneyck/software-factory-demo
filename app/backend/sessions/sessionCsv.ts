@@ -7,7 +7,7 @@ const CSV_HEADER = ['Date', 'Training', 'Status', 'Score', 'Notes'];
  * comma, a double quote, or a line break; double any embedded quotes.
  */
 const escapeField = (value: string): string =>
-  /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
 
 /**
  * Build a CSV document for a dog's logged sessions. The result is prefixed
@@ -34,6 +34,7 @@ export function sessionsFilename(dogName: string): string {
   const slug = dogName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-/, '')
+    .replace(/-$/, '');
   return `${slug || 'dog'}-sessions.csv`;
 }
