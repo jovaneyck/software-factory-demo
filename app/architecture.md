@@ -84,8 +84,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph Sessions
-        sessionRoutes["sessionRoutes<br/>GET/POST/PUT/DELETE<br/>/dogs/:dogId/sessions"]
+        sessionRoutes["sessionRoutes<br/>GET/POST/PUT/DELETE /dogs/:dogId/sessions<br/>GET /dogs/:dogId/sessions/export.csv"]
         SessionListingService["SessionListingService<br/>merges schedule + sessions"]
+        SessionExportService["SessionExportService<br/>selects logged sessions + builds CSV"]
         SessionRepository["SessionRepository<br/>interface"]
         FsSessionRepository["FsSessionRepository<br/>file-system impl"]
         FakeSessionRepository["FakeSessionRepository<br/>in-memory impl"]
@@ -94,6 +95,7 @@ flowchart TD
     subgraph Shared
         Session["Session<br/>id, dogId, trainingId, date,<br/>status, planId?, score?, notes?"]
         Plan["Plan<br/>id, name, schedule"]
+        Training["Training<br/>id, name, procedure, tips"]
         validateUuid["validateUuid<br/>middleware"]
     end
 
@@ -105,16 +107,26 @@ flowchart TD
         PlanRepository["PlanRepository<br/>interface"]
     end
 
+    subgraph Trainings
+        TrainingRepository["TrainingRepository<br/>interface"]
+    end
+
     sessionRoutes -->|uses| DogRepository
     sessionRoutes -->|uses| SessionRepository
     sessionRoutes -->|uses| SessionListingService
+    sessionRoutes -->|uses| SessionExportService
     sessionRoutes -->|uses| validateUuid
     sessionRoutes -->|uses| Session
     SessionListingService -->|reads dogs| DogRepository
     SessionListingService -->|reads plans| PlanRepository
     SessionListingService -->|reads sessions| SessionRepository
     SessionListingService -->|uses| Plan
+    SessionExportService -->|reads dogs| DogRepository
+    SessionExportService -->|lists sessions| SessionListingService
+    SessionExportService -->|reads trainings| TrainingRepository
+    SessionExportService -->|uses| Session
     SessionRepository -->|uses| Session
+    TrainingRepository -->|uses| Training
     FsSessionRepository -.->|implements| SessionRepository
     FakeSessionRepository -.->|implements| SessionRepository
 ```

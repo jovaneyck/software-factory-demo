@@ -374,4 +374,54 @@ describe('DogProfile', () => {
     expect(screen.queryByRole('link', { name: /view plan/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /unassign/i })).not.toBeInTheDocument();
   });
+
+  it('shows an Export CSV link to the sessions export endpoint when a plan is assigned', async () => {
+    const plan = {
+      id: 'plan-1',
+      name: 'Puppy Basics',
+      schedule: {
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: [],
+      },
+    };
+    const dog = { id: DOG_ID, name: 'Buddy', picture: 'buddy.jpg', planId: 'plan-1' };
+    const handleSessions = mockSessionsEndpoint({});
+
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      const urlStr = String(url);
+      if (urlStr === `/api/dogs/${DOG_ID}`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(dog) } as Response);
+      }
+      if (urlStr === '/api/plans') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([plan]) } as Response);
+      }
+      if (urlStr === `/api/plans/plan-1`) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(plan) } as Response);
+      }
+      if (urlStr === '/api/trainings') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (urlStr.includes(`/api/dogs/${DOG_ID}/sessions`)) {
+        return handleSessions(urlStr);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/dogs/${DOG_ID}`]}>
+        <Routes>
+          <Route path="/dogs/:id" element={<DogProfile />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const exportLink = await screen.findByRole('link', { name: /export csv/i });
+    expect(exportLink).toHaveAttribute('href', `/api/dogs/${DOG_ID}/sessions/export.csv`);
+    expect(exportLink).toHaveAttribute('download');
+  });
 });
