@@ -10,6 +10,7 @@ import { FsTrainingRepository } from './trainings/FsTrainingRepository.js';
 import { FsPlanRepository } from './plans/FsPlanRepository.js';
 import { FsSessionRepository } from './sessions/FsSessionRepository.js';
 import { SessionListingService } from './sessions/SessionListingService.js';
+import { SessionExportService } from './sessions/SessionExportService.js';
 import { healthRoutes } from './health/healthRoutes.js';
 import { dogRoutes } from './dogs/dogRoutes.js';
 import { trainingRoutes } from './trainings/trainingRoutes.js';
@@ -34,6 +35,11 @@ export function createApp(dataRoot: string = path.join(process.cwd(), 'data')) {
 
   // Services
   const sessionListingService = new SessionListingService(dogRepo, planRepo, sessionRepo);
+  const sessionExportService = new SessionExportService(
+    dogRepo,
+    sessionListingService,
+    trainingRepo,
+  );
 
   // Multer storage
   const dogStorage = multer.diskStorage({
@@ -77,7 +83,7 @@ export function createApp(dataRoot: string = path.join(process.cwd(), 'data')) {
   app.use('/api', dogRoutes(dogRepo, dogUpload));
   app.use('/api', trainingRoutes(trainingRepo, trainingUpload));
   app.use('/api', planRoutes(planRepo));
-  app.use('/api', sessionRoutes(dogRepo, sessionRepo, sessionListingService, trainingRepo));
+  app.use('/api', sessionRoutes(dogRepo, sessionRepo, sessionListingService, sessionExportService));
 
   return app;
 }

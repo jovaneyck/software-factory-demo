@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
+import type { Session } from '../shared/types.js';
 import { sessionsToCsv, sessionsFilename } from './sessionCsv.js';
+
+const session = (overrides: Partial<Session> = {}): Session => ({
+  id: 'ses-1',
+  dogId: 'dog-1',
+  trainingId: 't1',
+  date: '2026-02-14',
+  status: 'completed',
+  ...overrides,
+});
 
 describe('sessionsToCsv', () => {
   it('emits a header-only document with BOM and CRLF when there are no sessions', () => {
@@ -9,8 +19,8 @@ describe('sessionsToCsv', () => {
   it('resolves training names and leaves score blank for skipped sessions', () => {
     const csv = sessionsToCsv(
       [
-        { date: '2026-02-14', trainingId: 't1', status: 'completed', score: 8 },
-        { date: '2026-02-15', trainingId: 't2', status: 'skipped' },
+        session({ date: '2026-02-14', trainingId: 't1', status: 'completed', score: 8 }),
+        session({ date: '2026-02-15', trainingId: 't2', status: 'skipped' }),
       ],
       new Map([['t1', 'Sit']]),
     );
@@ -25,9 +35,9 @@ describe('sessionsToCsv', () => {
   it('sorts rows by date ascending', () => {
     const csv = sessionsToCsv(
       [
-        { date: '2026-03-01', trainingId: 't1', status: 'completed' },
-        { date: '2026-01-01', trainingId: 't1', status: 'completed' },
-        { date: '2026-02-01', trainingId: 't1', status: 'completed' },
+        session({ date: '2026-03-01' }),
+        session({ date: '2026-01-01' }),
+        session({ date: '2026-02-01' }),
       ],
       new Map([['t1', 'Sit']]),
     );
@@ -41,14 +51,7 @@ describe('sessionsToCsv', () => {
 
   it('quotes fields containing commas, quotes and newlines (RFC 4180)', () => {
     const csv = sessionsToCsv(
-      [
-        {
-          date: '2026-02-14',
-          trainingId: 't1',
-          status: 'completed',
-          notes: 'Great, "very" good\nline two',
-        },
-      ],
+      [session({ notes: 'Great, "very" good\nline two' })],
       new Map([['t1', 'Sit']]),
     );
 

@@ -11,3 +11,9 @@ export type Session = {
   score?: number;
   notes?: string;
 };
+
+/** A schedule-derived session that has not been persisted yet (no id). */
+export type PlannedSession = Omit<Session, 'id' | 'status'> & { id?: string; status: 'planned' };
+
+/** A session as returned by the listing service: persisted or schedule-derived. */
+export type ListedSession = Session | PlannedSession;

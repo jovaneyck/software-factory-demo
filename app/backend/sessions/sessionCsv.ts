@@ -1,10 +1,4 @@
-export interface CsvSession {
-  date: string;
-  trainingId: string;
-  status: string;
-  score?: number;
-  notes?: string;
-}
+import type { Session } from '../shared/types.js';
 
 const CSV_HEADER = ['Date', 'Training', 'Status', 'Score', 'Notes'];
 
@@ -20,7 +14,7 @@ const escapeField = (value: string): string =>
  * with a UTF-8 BOM and uses CRLF line endings so it opens cleanly in Excel.
  * Rows are sorted by date ascending.
  */
-export function sessionsToCsv(sessions: CsvSession[], trainingNames: Map<string, string>): string {
+export function sessionsToCsv(sessions: Session[], trainingNames: Map<string, string>): string {
   const rows = [...sessions]
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((session) => [

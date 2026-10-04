@@ -8,6 +8,7 @@ import { FakeSessionRepository } from './FakeSessionRepository.js';
 import { FakePlanRepository } from '../plans/FakePlanRepository.js';
 import { FakeTrainingRepository } from '../trainings/FakeTrainingRepository.js';
 import { SessionListingService } from './SessionListingService.js';
+import { SessionExportService } from './SessionExportService.js';
 
 interface SessionResponse {
   id?: string;
@@ -31,9 +32,10 @@ describe('Sessions API', () => {
     plans = new FakePlanRepository();
     trainings = new FakeTrainingRepository();
     const service = new SessionListingService(dogs, plans, sessions);
+    const exportService = new SessionExportService(dogs, service, trainings);
     app = express();
     app.use(express.json());
-    app.use('/api', sessionRoutes(dogs, sessions, service, trainings));
+    app.use('/api', sessionRoutes(dogs, sessions, service, exportService));
 
     dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg' });
   });
@@ -441,7 +443,7 @@ describe('Sessions API', () => {
       expect(res.text).toContain('2026-02-14,Sit,completed,8,Good boy');
     });
 
-    it('excludes planned sessions', async () => {
+    it('exports logged sessions and excludes scheduled planned ones', async () => {
       trainings.save({ id: trainingId, name: 'Sit', procedure: '', tips: '' });
       const planId = crypto.randomUUID();
       plans.save({
@@ -459,10 +461,25 @@ describe('Sessions API', () => {
       });
       dogs.save({ id: dogId, name: 'Buddy', picture: 'buddy.jpg', planId });
 
+      // 2026-02-09 is a Monday: the persisted log overrides the planned slot.
+      sessions.save({
+        id: crypto.randomUUID(),
+        dogId,
+        trainingId,
+        planId,
+        date: '2026-02-09',
+        status: 'completed',
+        score: 9,
+      });
+
       const res = await request(app).get(`/api/dogs/${dogId}/sessions/export.csv`);
 
       expect(res.status).toBe(200);
+      // The logged row survives the filter...
+      expect(res.text).toContain('2026-02-09,Sit,completed,9,');
+      // ...while the many schedule-derived `planned` slots do not.
       expect(res.text).not.toContain('planned');
+      expect(res.text.trim().split('\r\n')).toHaveLength(2);
     });
 
     it('quotes notes containing commas, quotes and newlines', async () => {
