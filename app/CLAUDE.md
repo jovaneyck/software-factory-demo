@@ -34,6 +34,7 @@ Monorepo with two independent npm projects (no root package.json scripts — run
 - Each feature has paired `Component.tsx` / `Component.test.tsx` files
 - Tests use Testing Library with `vi.spyOn(global, 'fetch')` for API mocking
 - Markdown editing via `@uiw/react-md-editor`
+- **UI: read `frontend/src/ui/README.md` before any frontend work.** Build pages from the `src/ui` primitives (import from `./ui`), use design tokens (raw Tailwind palette colors fail lint), icons from `lucide-react`. Live style guide at `/design-system`.
 
 ### Domain Model
 Three entities, all stored as JSON files with UUID ids:

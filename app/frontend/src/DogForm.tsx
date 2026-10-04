@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { Button, Card, Field, ImagePicker, Input, PageHeader } from './ui';
 
 function DogForm() {
   const navigate = useNavigate();
@@ -31,49 +32,27 @@ function DogForm() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-800 transition-colors"
-      >
-        <span>←</span> <span>Register a Dog</span>
-      </Link>
+      <PageHeader title="Register a Dog" back={{ to: '/', label: 'Dogs' }} />
 
-      <div className="bg-white rounded-2xl shadow-sm p-6">
+      <Card padding="lg">
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
-              Name
-            </label>
-            <input
+          <Field label="Name" htmlFor="name">
+            <Input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-          </div>
-          <div>
-            <label htmlFor="picture" className="block text-sm font-medium text-slate-700 mb-1">
-              Picture
-            </label>
-            <input
-              id="picture"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPicture(e.target.files?.[0] || null)}
-              className="w-full text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          </Field>
+          <Field label="Picture" htmlFor="picture">
+            <ImagePicker id="picture" onFileChange={setPicture} />
+          </Field>
+          <Button type="submit" size="lg" block loading={submitting}>
             {submitting ? 'Registering...' : 'Register Dog'}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }

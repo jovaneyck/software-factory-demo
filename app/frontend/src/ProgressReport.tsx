@@ -1,7 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Target, TrendingUp } from 'lucide-react';
 import ProgressGraph from './ProgressGraph';
 import DogTile from './DogTile';
+import {
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  ListGroup,
+  ListItem,
+  ListItemIcon,
+  PageHeader,
+  Section,
+  SegmentedControl,
+} from './ui';
 
 type TimeRange = 'all' | 'year' | 'month' | 'week';
 
@@ -125,83 +139,106 @@ function ProgressReport() {
     setTimeRange('all');
   }
 
+  const header = <PageHeader title="Progress" description="Scores over time, per training" />;
+
   if (error) {
     return (
-      <div>
-        <h2 className="text-2xl font-bold text-slate-800">Progress</h2>
-        <div className="flex flex-col items-center justify-center py-16 space-y-4">
-          <p className="text-red-500 text-lg">Something went wrong. Please try again later.</p>
-        </div>
+      <div className="space-y-6">
+        {header}
+        <ErrorState />
+      </div>
+    );
+  }
+
+  if (!selectedDog) {
+    return (
+      <div className="space-y-6">
+        {header}
+        <Section title="Choose a dog">
+          {dogs.length > 0 && (
+            <ListGroup>
+              {dogs.map((dog) => (
+                <DogTile key={dog.id} dog={dog} onClick={() => selectDog(dog.id)} />
+              ))}
+            </ListGroup>
+          )}
+        </Section>
       </div>
     );
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-slate-800">Progress</h2>
-      {selectedDog ? (
-        <div className="mt-4">
-          <p className="text-lg font-semibold">{selectedDog.name}</p>
-          <button onClick={deselectDog} className="mt-2 text-sm text-blue-600 hover:underline">
-            Change dog
-          </button>
+    <div className="space-y-6">
+      {header}
 
-          {selectedTraining ? (
-            <div className="mt-4">
-              <p className="font-medium">{selectedTraining.name}</p>
-              <button
-                onClick={deselectTraining}
-                className="mt-2 text-sm text-blue-600 hover:underline"
-              >
-                Change training
-              </button>
-              <div className="mt-3 flex gap-2">
-                {TIME_RANGE_OPTIONS.map(({ label, value }) => (
-                  <button
-                    key={value}
-                    onClick={() => setTimeRange(value)}
-                    className={`rounded-full px-3 py-1 text-sm font-medium ${
-                      timeRange === value
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <ProgressGraph
-                sessions={sessions
-                  .filter((s) => {
-                    if (s.trainingId !== selectedTrainingId) return false;
-                    if (s.status !== 'completed' && s.status !== 'skipped') return false;
-                    const cutoff = getCutoffDate(timeRange);
-                    if (cutoff && s.date < cutoff) return false;
-                    return true;
-                  })
-                  .sort((a, b) => a.date.localeCompare(b.date))}
-              />
+      <Card padding="sm" className="flex items-center gap-3">
+        <Avatar
+          name={selectedDog.name}
+          src={selectedDog.picture ? `/uploads/dogs/${selectedDog.picture}` : undefined}
+          size="sm"
+        />
+        <p className="min-w-0 flex-1 truncate font-semibold text-ink">{selectedDog.name}</p>
+        <Button variant="ghost" size="sm" onClick={deselectDog}>
+          Change dog
+        </Button>
+      </Card>
+
+      {selectedTraining ? (
+        <Card className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <ListItemIcon>
+                <TrendingUp />
+              </ListItemIcon>
+              <p className="font-semibold text-ink">{selectedTraining.name}</p>
             </div>
+            <Button variant="ghost" size="sm" onClick={deselectTraining}>
+              Change training
+            </Button>
+          </div>
+          <SegmentedControl
+            label="Time range"
+            options={TIME_RANGE_OPTIONS}
+            value={timeRange}
+            onChange={setTimeRange}
+          />
+          <ProgressGraph
+            sessions={sessions
+              .filter((s) => {
+                if (s.trainingId !== selectedTrainingId) return false;
+                if (s.status !== 'completed' && s.status !== 'skipped') return false;
+                const cutoff = getCutoffDate(timeRange);
+                if (cutoff && s.date < cutoff) return false;
+                return true;
+              })
+              .sort((a, b) => a.date.localeCompare(b.date))}
+          />
+        </Card>
+      ) : (
+        <Section title="Choose a training">
+          {!loadedData ? null : relevantTrainings.length === 0 ? (
+            <EmptyState
+              icon={<Target />}
+              title="No sessions logged yet"
+              description="Check off sessions from the dog's profile to see progress here."
+            />
           ) : (
-            <div className="mt-4 grid gap-3">
+            <ListGroup>
               {relevantTrainings.map((training) => (
-                <button
+                <ListItem
                   key={training.id}
                   onClick={() => selectTraining(training.id)}
-                  className="rounded-lg border border-slate-200 p-4 text-left hover:bg-slate-50"
-                >
-                  {training.name}
-                </button>
+                  title={training.name}
+                  leading={
+                    <ListItemIcon>
+                      <Target />
+                    </ListItemIcon>
+                  }
+                />
               ))}
-            </div>
+            </ListGroup>
           )}
-        </div>
-      ) : (
-        <div className="mt-4 grid gap-3">
-          {dogs.map((dog) => (
-            <DogTile key={dog.id} dog={dog} onClick={() => selectDog(dog.id)} />
-          ))}
-        </div>
+        </Section>
       )}
     </div>
   );

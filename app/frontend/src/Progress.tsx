@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import ProgressView from './ProgressView';
+import { LoadingState, PageHeader } from './ui';
 
 interface Training {
   id: string;
@@ -30,13 +31,11 @@ function Progress() {
     );
   }, [dogId]);
 
-  if (loading) {
-    return <p className="text-slate-500 text-center py-12">Loading...</p>;
-  }
+  if (loading) return <LoadingState />;
 
   return (
     <div className="space-y-6">
-      {dog && <h2 className="text-2xl font-bold text-slate-800">{dog.name}</h2>}
+      {dog && <PageHeader title={dog.name} back={{ to: `/dogs/${dogId}`, label: 'Profile' }} />}
       <ProgressView dogId={dogId!} trainings={trainings} />
     </div>
   );

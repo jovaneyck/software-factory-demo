@@ -1,10 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { CalendarDays, Plus } from 'lucide-react';
+import {
+  ButtonLink,
+  EmptyState,
+  ErrorState,
+  IconButtonLink,
+  ListGroup,
+  ListItem,
+  ListItemIcon,
+  LoadingState,
+  PageHeader,
+} from './ui';
 
 interface Plan {
   id: string;
   name: string;
   schedule: Record<string, string[]>;
+}
+
+function summarize(schedule: Record<string, string[]>) {
+  const days = Object.values(schedule).filter((ids) => ids.length > 0);
+  const sessions = days.reduce((total, ids) => total + ids.length, 0);
+  return `${sessions} ${sessions === 1 ? 'session' : 'sessions'} · ${days.length} ${days.length === 1 ? 'day' : 'days'} a week`;
 }
 
 function PlanList() {
@@ -28,56 +45,46 @@ function PlanList() {
       });
   }, []);
 
-  if (loading) {
-    return <p className="text-slate-500">Loading...</p>;
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <p className="text-red-500 text-lg">Something went wrong. Please try again later.</p>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState />;
 
   if (plans.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <p className="text-slate-500 text-lg">No plans yet.</p>
-        <Link
-          to="/plans/new"
-          className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors"
-        >
-          Create a plan
-        </Link>
-      </div>
+      <EmptyState
+        icon={<CalendarDays />}
+        title="No plans yet."
+        description="A plan maps trainings onto the days of the week."
+        action={
+          <ButtonLink to="/plans/new" icon={<Plus />}>
+            Create a plan
+          </ButtonLink>
+        }
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-800">Training Plans</h2>
-        <Link
-          to="/plans/new"
-          className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold hover:bg-blue-700 transition-colors"
-          aria-label="Add plan"
-        >
-          +
-        </Link>
-      </div>
-      <div className="space-y-3">
+      <PageHeader
+        title="Training Plans"
+        description="Weekly routines you can assign to a dog"
+        actions={<IconButtonLink to="/plans/new" label="Add plan" icon={<Plus />} />}
+      />
+      <ListGroup>
         {plans.map((plan) => (
-          <Link
+          <ListItem
             key={plan.id}
             to={`/plans/${plan.id}`}
-            className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between hover:shadow-md transition-shadow"
-          >
-            <span className="text-slate-800 font-medium">{plan.name}</span>
-            <span className="text-slate-400">&rsaquo;</span>
-          </Link>
+            title={plan.name}
+            description={plan.schedule ? summarize(plan.schedule) : undefined}
+            leading={
+              <ListItemIcon>
+                <CalendarDays />
+              </ListItemIcon>
+            }
+          />
         ))}
-      </div>
+      </ListGroup>
     </div>
   );
 }

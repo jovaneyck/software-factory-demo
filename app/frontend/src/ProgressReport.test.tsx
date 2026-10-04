@@ -321,7 +321,7 @@ describe('ProgressReport', () => {
     });
 
     const allButton = screen.getByRole('button', { name: 'All' });
-    expect(allButton.className).toContain('bg-blue-600');
+    expect(allButton).toHaveAttribute('aria-pressed', 'true');
 
     const graph = screen.getByTestId('progress-graph');
     const dots = graph.querySelectorAll('circle.completed');
@@ -359,7 +359,7 @@ describe('ProgressReport', () => {
     });
 
     const weekButton = screen.getByRole('button', { name: 'Week' });
-    expect(weekButton.className).toContain('bg-blue-600');
+    expect(weekButton).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('clicking "All" after another filter shows all sessions again', async () => {

@@ -78,10 +78,10 @@ describe('Progress', () => {
     mockFetch({});
     renderProgress();
 
-    // Feb 14 is Saturday. The selected day button should have a distinctive style.
+    // Feb 14 is Saturday.
     await waitFor(() => {
       const satButton = screen.getByRole('button', { name: /Sat 14/ });
-      expect(satButton).toHaveClass('bg-blue-600');
+      expect(satButton).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
@@ -734,7 +734,7 @@ describe('Progress', () => {
     await waitFor(() => {
       // Should be back on the week containing Feb 14 (today), with Sat 14 selected
       const satButton = screen.getByRole('button', { name: /Sat 14/ });
-      expect(satButton).toHaveClass('bg-blue-600');
+      expect(satButton).toHaveAttribute('aria-pressed', 'true');
     });
   });
 

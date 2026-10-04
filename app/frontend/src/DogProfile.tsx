@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { CalendarDays, SearchX } from 'lucide-react';
 import ProgressView from './ProgressView';
+import {
+  BackLink,
+  Button,
+  ButtonLink,
+  Card,
+  EmptyState,
+  ListItemIcon,
+  LoadingState,
+  Section,
+  Select,
+} from './ui';
 
 interface Dog {
   id: string;
@@ -86,20 +98,13 @@ function DogProfile() {
     }
   };
 
-  if (loading) {
-    return <p className="text-slate-500 text-center py-12">Loading...</p>;
-  }
+  if (loading) return <LoadingState />;
 
   if (notFound) {
     return (
-      <div className="space-y-4">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-800 transition-colors"
-        >
-          <span>←</span> <span>Back</span>
-        </Link>
-        <p className="text-slate-600">Dog not found</p>
+      <div className="space-y-6">
+        <BackLink to="/">Dogs</BackLink>
+        <EmptyState icon={<SearchX />} title="Dog not found" />
       </div>
     );
   }
@@ -107,66 +112,72 @@ function DogProfile() {
   if (!dog) return null;
 
   return (
-    <div className="space-y-6">
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-800 transition-colors"
-      >
-        <span>←</span> <span>Back</span>
-      </Link>
-
-      <h2 className="text-2xl font-bold text-slate-800">{dog.name}</h2>
-
-      <img
-        src={`/uploads/dogs/${dog.picture}`}
-        alt={dog.name}
-        className="rounded-2xl max-h-80 w-full object-cover"
-      />
-
-      {assignedPlan ? (
-        <>
-          <ProgressView dogId={id!} trainings={trainings} />
-
-          <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-            <Link
-              to={`/plans/${assignedPlan.id}`}
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors"
-            >
-              View Plan
-            </Link>
-            <button
-              onClick={handleUnassign}
-              className="bg-red-50 text-red-600 px-6 py-3 rounded-xl font-medium hover:bg-red-100 transition-colors block"
-            >
-              Unassign
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-slate-700">Training Plan</h3>
-          <div className="flex items-center gap-3">
-            <select
-              value={selectedPlanId}
-              onChange={(e) => setSelectedPlanId(e.target.value)}
-              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select a plan</option>
-              {plans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={handleAssign}
-              disabled={!selectedPlanId}
-              className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Assign
-            </button>
-          </div>
+    <div className="space-y-8">
+      <div className="space-y-4">
+        <BackLink to="/">Dogs</BackLink>
+        <div className="relative overflow-hidden rounded-3xl bg-surface-sunken shadow-raised">
+          <img
+            src={`/uploads/dogs/${dog.picture}`}
+            alt={dog.name}
+            className="aspect-[4/3] w-full object-cover sm:aspect-[16/9]"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/70 via-ink/0 to-ink/0" />
+          <h1 className="absolute bottom-0 left-0 p-5 text-3xl font-bold tracking-tight text-ink-inverted sm:p-7 sm:text-4xl">
+            {dog.name}
+          </h1>
         </div>
+      </div>
+
+      <Section title="Training plan">
+        {assignedPlan ? (
+          <Card className="flex flex-wrap items-center gap-4">
+            <ListItemIcon>
+              <CalendarDays />
+            </ListItemIcon>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-ink">{assignedPlan.name}</p>
+              <p className="text-sm text-ink-muted">Current weekly plan</p>
+            </div>
+            <div className="flex gap-2">
+              <ButtonLink to={`/plans/${assignedPlan.id}`} variant="secondary" size="sm">
+                View Plan
+              </ButtonLink>
+              <Button onClick={handleUnassign} variant="danger" size="sm">
+                Unassign
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="space-y-3">
+            <p className="text-sm text-ink-muted">
+              Pick a weekly plan to start scheduling sessions.
+            </p>
+            <div className="flex items-center gap-2">
+              <Select
+                aria-label="Training plan"
+                value={selectedPlanId}
+                onChange={(e) => setSelectedPlanId(e.target.value)}
+                className="flex-1"
+              >
+                <option value="">Select a plan</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
+                  </option>
+                ))}
+              </Select>
+              <Button onClick={handleAssign} disabled={!selectedPlanId} className="h-11">
+                Assign
+              </Button>
+            </div>
+          </Card>
+        )}
+      </Section>
+
+      {assignedPlan && (
+        <Section title="Sessions">
+          <ProgressView dogId={id!} trainings={trainings} />
+        </Section>
       )}
     </div>
   );

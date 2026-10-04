@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import './App.css';
+import { CalendarDays, Dog, Target, TrendingUp } from 'lucide-react';
 import logo from './assets/logo.png';
+import { cn } from './ui';
 import DogList from './DogList';
 import DogForm from './DogForm';
 import DogProfile from './DogProfile';
@@ -14,57 +15,84 @@ import PlanDetail from './PlanDetail';
 import PlanEdit from './PlanEdit';
 import Progress from './Progress';
 import ProgressReport from './ProgressReport';
+import DesignSystem from './DesignSystem';
 
+const TABS = [
+  { to: '/', label: 'Dogs', prefix: '/', Icon: Dog },
+  { to: '/trainings', label: 'Trainings', prefix: '/trainings', Icon: Target },
+  { to: '/plans', label: 'Plans', prefix: '/plans', Icon: CalendarDays },
+  { to: '/progress', label: 'Progress', prefix: '/progress', Icon: TrendingUp },
+];
+
+// Bottom tab bar on mobile, inline pill tabs in the header from `md` up.
 function NavBar() {
-  const location = useLocation();
-  const path = location.pathname;
+  const { pathname } = useLocation();
 
   const isActive = (prefix: string) => {
-    if (prefix === '/') return path === '/' || path.startsWith('/dogs');
-    return path.startsWith(prefix);
+    if (prefix === '/') return pathname === '/' || pathname.startsWith('/dogs');
+    return pathname.startsWith(prefix);
   };
 
-  const tabs = [
-    { to: '/', label: 'Dogs', prefix: '/', icon: '🐕' },
-    { to: '/trainings', label: 'Trainings', prefix: '/trainings', icon: '🎯' },
-    { to: '/plans', label: 'Plans', prefix: '/plans', icon: '📋' },
-    { to: '/progress', label: 'Progress', prefix: '/progress', icon: '📊' },
-  ];
-
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50">
-      <div className="max-w-lg mx-auto flex">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.to}
-            to={tab.to}
-            className={`flex-1 flex flex-col items-center py-3 text-xs font-medium transition-colors ${
-              isActive(tab.prefix) ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <span className="text-xl mb-0.5">{tab.icon}</span>
-            {tab.label}
-          </Link>
-        ))}
+    <nav
+      aria-label="Main"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-line/70 bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none"
+    >
+      <div className="mx-auto flex max-w-md md:max-w-none md:gap-1">
+        {TABS.map(({ to, label, prefix, Icon }) => {
+          const active = isActive(prefix);
+          return (
+            <Link
+              key={to}
+              to={to}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition-colors',
+                'md:h-9 md:flex-none md:flex-row md:gap-2 md:rounded-xl md:px-3.5 md:py-0 md:text-sm',
+                active
+                  ? 'text-brand-600 md:bg-surface md:text-ink md:shadow-card'
+                  : 'text-ink-subtle hover:text-ink',
+              )}
+            >
+              <Icon
+                aria-hidden="true"
+                className={cn('size-6 md:size-4', active && 'md:text-brand-600')}
+                strokeWidth={active ? 2.25 : 1.75}
+              />
+              {label}
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
 }
 
-function App() {
-  return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        <header className="sticky top-0 bg-white shadow-sm z-50">
-          <div className="max-w-lg mx-auto px-4 py-3 flex items-center">
-            <Link to="/" className="flex items-center gap-2 no-underline">
-              <img src={logo} alt="DogTrainr logo" className="h-8 w-8 rounded-full" />
-              <span className="text-xl font-bold text-slate-800">DogTrainr</span>
-            </Link>
-          </div>
-        </header>
+function Shell() {
+  const { pathname } = useLocation();
 
-        <main className="max-w-lg mx-auto px-4 py-6 pb-24">
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 border-b border-line/70 bg-canvas/80 backdrop-blur-xl"
+        />
+        <div className="relative mx-auto flex h-16 max-w-3xl items-center justify-between px-4 sm:px-6">
+          <Link to="/" className="flex items-center gap-2.5 rounded-xl">
+            <img
+              src={logo}
+              alt="DogTrainr logo"
+              className="size-9 rounded-full shadow-card ring-2 ring-surface"
+            />
+            <span className="text-lg font-bold tracking-tight text-ink">DogTrainr</span>
+          </Link>
+          <NavBar />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-3xl px-4 pb-32 pt-6 sm:px-6 sm:pt-8 md:pb-16">
+        <div key={pathname} className="animate-rise-in">
           <Routes>
             <Route path="/" element={<DogList />} />
             <Route path="/dogs/new" element={<DogForm />} />
@@ -79,11 +107,18 @@ function App() {
             <Route path="/plans/:id" element={<PlanDetail />} />
             <Route path="/plans/:id/edit" element={<PlanEdit />} />
             <Route path="/progress" element={<ProgressReport />} />
+            <Route path="/design-system" element={<DesignSystem />} />
           </Routes>
-        </main>
+        </div>
+      </main>
+    </div>
+  );
+}
 
-        <NavBar />
-      </div>
+function App() {
+  return (
+    <BrowserRouter>
+      <Shell />
     </BrowserRouter>
   );
 }

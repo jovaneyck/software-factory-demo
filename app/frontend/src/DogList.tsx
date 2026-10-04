@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Dog as DogIcon, Plus } from 'lucide-react';
 import DogTile from './DogTile';
+import {
+  ButtonLink,
+  EmptyState,
+  ErrorState,
+  IconButtonLink,
+  ListGroup,
+  LoadingState,
+  PageHeader,
+} from './ui';
 
 interface Dog {
   id: string;
@@ -29,49 +38,36 @@ function DogList() {
       });
   }, []);
 
-  if (loading) {
-    return <p className="text-slate-500 text-center py-12">Loading...</p>;
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <p className="text-red-500 text-lg">Something went wrong. Please try again later.</p>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState />;
 
   if (dogs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <p className="text-slate-500 text-lg">No dogs registered yet.</p>
-        <Link
-          to="/dogs/new"
-          className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors"
-        >
-          Register a dog
-        </Link>
-      </div>
+      <EmptyState
+        icon={<DogIcon />}
+        title="No dogs registered yet."
+        description="Add your first pup to start planning training sessions."
+        action={
+          <ButtonLink to="/dogs/new" icon={<Plus />}>
+            Register a dog
+          </ButtonLink>
+        }
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-800">Your Dogs</h2>
-        <Link
-          to="/dogs/new"
-          className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold hover:bg-blue-700 transition-colors"
-          aria-label="Register a dog"
-        >
-          +
-        </Link>
-      </div>
-      <div className="space-y-3">
+      <PageHeader
+        title="Your Dogs"
+        description={`${dogs.length} ${dogs.length === 1 ? 'pup' : 'pups'} in training`}
+        actions={<IconButtonLink to="/dogs/new" label="Register a dog" icon={<Plus />} />}
+      />
+      <ListGroup>
         {dogs.map((dog) => (
           <DogTile key={dog.id} dog={dog} to={`/dogs/${dog.id}`} />
         ))}
-      </div>
+      </ListGroup>
     </div>
   );
 }

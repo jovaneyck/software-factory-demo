@@ -1,4 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  ChoiceChip,
+  Field,
+  IconButton,
+  Modal,
+  Section,
+  Textarea,
+  cn,
+} from './ui';
 
 interface Session {
   id?: string;
@@ -62,6 +75,25 @@ function formatAgendaHeader(date: Date): string {
   const month = MONTH_NAMES[date.getMonth()];
   const year = date.getFullYear();
   return `${dayName} ${dayNum} ${month} ${year}`;
+}
+
+function StatusMarker({ status }: { status: Session['status'] }) {
+  if (status === 'completed') {
+    return (
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-success-soft text-sm font-bold text-success">
+        {'\u2713'}
+      </span>
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'size-8 shrink-0 rounded-full border-2',
+        status === 'skipped' ? 'border-line bg-surface-muted' : 'border-dashed border-brand-300',
+      )}
+    />
+  );
 }
 
 interface ProgressViewProps {
@@ -187,6 +219,7 @@ function ProgressView({ dogId, trainings }: ProgressViewProps) {
 
   const isCurrentWeek = formatDate(weekStart) === formatDate(getMonday(new Date()));
 
+  const todayStr = formatDate(new Date());
   const selectedDateStr = formatDate(selectedDate);
   const daySessions = sessions.filter((s) => s.date === selectedDateStr);
 
@@ -194,43 +227,38 @@ function ProgressView({ dogId, trainings }: ProgressViewProps) {
   const headerYear = weekStart.getFullYear();
 
   return (
-    <>
-      {/* Week strip */}
-      <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
+    <div className="space-y-5">
+      <Card padding="sm" className="space-y-3">
         <div className="flex items-center justify-between">
-          <button
+          <IconButton
+            label="previous week"
+            icon={<ChevronLeft />}
+            size="sm"
             onClick={() => navigateWeek(-1)}
-            aria-label="previous week"
-            className="p-2 text-slate-600 hover:text-slate-800"
-          >
-            &lt;
-          </button>
+          />
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-800">
+            <span className="font-semibold text-ink">
               {headerMonth} {headerYear}
             </span>
             {!isCurrentWeek && (
-              <button
-                onClick={navigateToday}
-                className="text-sm text-blue-600 font-medium hover:text-blue-800"
-              >
+              <Button variant="ghost" size="sm" onClick={navigateToday} className="h-7 px-2">
                 Today
-              </button>
+              </Button>
             )}
           </div>
-          <button
+          <IconButton
+            label="next week"
+            icon={<ChevronRight />}
+            size="sm"
             onClick={() => navigateWeek(1)}
-            aria-label="next week"
-            className="p-2 text-slate-600 hover:text-slate-800"
-          >
-            &gt;
-          </button>
+          />
         </div>
 
         <div className="grid grid-cols-7 gap-1 text-center">
           {weekDays.map((day, i) => {
             const dateStr = formatDate(day);
             const isSelected = dateStr === selectedDateStr;
+            const isToday = dateStr === todayStr;
             const hasCompletedOrSkipped = sessions.some(
               (s) => s.date === dateStr && (s.status === 'completed' || s.status === 'skipped'),
             );
@@ -239,28 +267,52 @@ function ProgressView({ dogId, trainings }: ProgressViewProps) {
               <button
                 key={i}
                 aria-label={`${DAY_LABELS[i]} ${day.getDate()}`}
+                aria-pressed={isSelected}
                 onClick={() => setSelectedDate(day)}
-                className={`flex flex-col items-center py-2 rounded-xl transition-colors ${
-                  isSelected ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <span className="text-xs">{DAY_LABELS[i]}</span>
-                <span className="text-lg font-semibold">{day.getDate()}</span>
-                {hasCompletedOrSkipped && (
-                  <span className="session-dot w-1.5 h-1.5 rounded-full bg-current mt-0.5" />
+                className={cn(
+                  'flex h-[4.25rem] flex-col items-center justify-center rounded-xl transition-all',
+                  isSelected
+                    ? 'bg-brand-600 text-ink-inverted shadow-brand'
+                    : 'text-ink hover:bg-surface-muted',
                 )}
+              >
+                <span
+                  className={cn(
+                    'text-[11px] font-medium uppercase tracking-wide',
+                    isSelected ? 'text-ink-inverted/80' : 'text-ink-subtle',
+                  )}
+                >
+                  {DAY_LABELS[i]}
+                </span>
+                <span
+                  className={cn(
+                    'text-lg font-semibold tabular-nums',
+                    isToday && !isSelected && 'text-brand-600',
+                  )}
+                >
+                  {day.getDate()}
+                </span>
+                <span className="flex h-1.5 items-center">
+                  {hasCompletedOrSkipped && (
+                    <span
+                      className={cn(
+                        'session-dot size-1.5 rounded-full',
+                        isSelected ? 'bg-ink-inverted' : 'bg-brand-500',
+                      )}
+                    />
+                  )}
+                </span>
               </button>
             );
           })}
         </div>
-      </div>
+      </Card>
 
-      {/* Agenda */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-slate-700">{formatAgendaHeader(selectedDate)}</h3>
-
+      <Section title={formatAgendaHeader(selectedDate)}>
         {daySessions.length === 0 ? (
-          <p className="text-slate-500">No sessions scheduled</p>
+          <p className="rounded-2xl border border-dashed border-line-strong px-4 py-8 text-center text-sm text-ink-subtle">
+            No sessions scheduled
+          </p>
         ) : (
           <div className="space-y-2">
             {daySessions.map((session, i) => {
@@ -269,162 +321,160 @@ function ProgressView({ dogId, trainings }: ProgressViewProps) {
               const trainingName = trainingMap.get(session.trainingId) ?? session.trainingId;
 
               return (
-                <div
+                <Card
                   key={session.id ?? `planned-${i}`}
-                  className="bg-white rounded-xl shadow-sm p-4"
+                  padding="sm"
+                  className={cn(
+                    'animate-rise-in transition-shadow',
+                    isExpandable && 'cursor-pointer hover:shadow-raised',
+                  )}
                   onClick={
                     isExpandable
                       ? () => setExpandedSessionId(isExpanded ? null : session.id!)
                       : undefined
                   }
-                  style={isExpandable ? { cursor: 'pointer' } : undefined}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-slate-800">{trainingName}</span>
-                    <div className="flex items-center gap-2">
-                      {session.status === 'completed' && !isExpanded && (
-                        <>
-                          {session.score != null && (
-                            <span className="text-slate-600">{session.score}/10</span>
-                          )}
-                          <span className="text-green-600 font-bold">{'\u2713'}</span>
-                        </>
+                  <div className="flex items-center gap-3">
+                    <StatusMarker status={session.status} />
+                    <span
+                      className={cn(
+                        'min-w-0 flex-1 truncate font-semibold',
+                        session.status === 'skipped' ? 'text-ink-muted' : 'text-ink',
                       )}
-                      {session.status === 'skipped' && !isExpanded && (
-                        <span className="text-slate-400 text-sm">Skipped</span>
-                      )}
-                      {session.status === 'planned' && (
-                        <button
-                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openSheet(session);
-                          }}
-                        >
-                          Check off
-                        </button>
-                      )}
-                    </div>
+                    >
+                      {trainingName}
+                    </span>
+                    {session.status === 'completed' && !isExpanded && session.score != null && (
+                      <Badge tone="success">{session.score}/10</Badge>
+                    )}
+                    {session.status === 'skipped' && !isExpanded && <Badge>Skipped</Badge>}
+                    {session.status === 'planned' && (
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openSheet(session);
+                        }}
+                      >
+                        Check off
+                      </Button>
+                    )}
                   </div>
                   {isExpanded && (
-                    <div className="mt-3 space-y-2 border-t pt-3">
-                      <p className="text-sm text-slate-600">
-                        {session.status === 'completed' ? 'Completed' : 'Skipped'}
-                      </p>
-                      {session.status === 'completed' && session.score != null && (
-                        <p className="text-sm text-slate-600">Score: {session.score}/10</p>
+                    <div className="mt-4 animate-fade-in space-y-3 border-t border-line pt-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge tone={session.status === 'completed' ? 'success' : 'neutral'}>
+                          {session.status === 'completed' ? 'Completed' : 'Skipped'}
+                        </Badge>
+                        {session.status === 'completed' && session.score != null && (
+                          <Badge tone="brand">Score: {session.score}/10</Badge>
+                        )}
+                      </div>
+                      {session.notes && (
+                        <p className="rounded-xl bg-surface-muted px-3.5 py-2.5 text-sm text-ink-muted">
+                          {session.notes}
+                        </p>
                       )}
-                      {session.notes && <p className="text-sm text-slate-600">{session.notes}</p>}
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          className="text-sm text-blue-600 font-medium"
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Pencil />}
                           onClick={(e) => {
                             e.stopPropagation();
                             openSheet(session);
                           }}
                         >
                           Edit
-                        </button>
-                        <button
-                          className="text-sm text-red-600 font-medium"
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Trash2 />}
+                          className="text-danger hover:bg-danger-soft"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRemove(session.id!);
                           }}
                         >
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>
         )}
-      </div>
+      </Section>
 
       {sheetSession && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setSheetSession(null)}
-        >
-          <div className="fixed inset-0 bg-black/30" />
-          <div
-            className="relative bg-white rounded-2xl w-full max-w-lg mx-4 p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-slate-800">{sheetSession.trainingName}</h3>
-            <p className="text-sm text-slate-500">{sheetSession.session.date}</p>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Status</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="status"
-                    value="completed"
-                    checked={sheetStatus === 'completed'}
-                    onChange={() => setSheetStatus('completed')}
-                  />
-                  Completed
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="status"
-                    value="skipped"
-                    checked={sheetStatus === 'skipped'}
-                    onChange={() => setSheetStatus('skipped')}
-                  />
-                  Skipped
-                </label>
-              </div>
-            </div>
-
-            {sheetStatus === 'completed' && (
-              <div className="space-y-2">
-                <label htmlFor="score-slider" className="text-sm font-medium text-slate-700">
-                  Score
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="score-slider"
-                    type="range"
-                    min={1}
-                    max={10}
-                    value={sheetScore ?? 5}
-                    onChange={(e) => setSheetScore(Number(e.target.value))}
-                    className="flex-1"
-                  />
-                  <span className="text-lg font-semibold text-slate-800 w-6 text-center">
-                    {sheetScore ?? 5}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Notes</label>
-              <textarea
-                value={sheetNotes}
-                onChange={(e) => setSheetNotes(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                rows={3}
-              />
-            </div>
-
-            <button
-              onClick={handleSave}
-              className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700"
-            >
+        <Modal
+          open
+          onClose={() => setSheetSession(null)}
+          title={sheetSession.trainingName}
+          description={sheetSession.session.date}
+          footer={
+            <Button onClick={handleSave} size="lg" block>
               Save
-            </button>
-          </div>
-        </div>
+            </Button>
+          }
+        >
+          <Field label="Status">
+            <div className="flex gap-2">
+              <ChoiceChip
+                type="radio"
+                name="status"
+                value="completed"
+                checked={sheetStatus === 'completed'}
+                onChange={() => setSheetStatus('completed')}
+              >
+                Completed
+              </ChoiceChip>
+              <ChoiceChip
+                type="radio"
+                name="status"
+                value="skipped"
+                checked={sheetStatus === 'skipped'}
+                onChange={() => setSheetStatus('skipped')}
+              >
+                Skipped
+              </ChoiceChip>
+            </div>
+          </Field>
+
+          {sheetStatus === 'completed' && (
+            <Field label="Score" htmlFor="score-slider">
+              <div className="flex items-center gap-4">
+                <input
+                  id="score-slider"
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={sheetScore ?? 5}
+                  onChange={(e) => setSheetScore(Number(e.target.value))}
+                  className="h-2 flex-1 cursor-pointer accent-brand-600"
+                />
+                <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-lg font-bold tabular-nums text-brand-700">
+                  {sheetScore ?? 5}
+                </span>
+              </div>
+            </Field>
+          )}
+
+          <Field label="Notes" htmlFor="session-notes">
+            <Textarea
+              id="session-notes"
+              value={sheetNotes}
+              onChange={(e) => setSheetNotes(e.target.value)}
+              rows={3}
+              placeholder="How did it go?"
+            />
+          </Field>
+        </Modal>
       )}
-    </>
+    </div>
   );
 }
 

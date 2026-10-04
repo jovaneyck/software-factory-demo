@@ -1,3 +1,40 @@
+@import '@fontsource-variable/inter';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-ink;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-canvas;
+  }
+}
+
+/* @uiw/react-md-editor: blend rendered markdown and the editor into the design system */
+@layer components {
+  .wmde-markdown {
+    @apply bg-transparent font-sans text-[15px] leading-relaxed text-ink;
+  }
+
+  .wmde-markdown a {
+    @apply font-medium text-brand-600 underline decoration-brand-200 underline-offset-2;
+  }
+
+  .w-md-editor {
+    @apply overflow-hidden rounded-xl border border-line font-sans shadow-none;
+  }
+
+  .w-md-editor-toolbar {
+    @apply border-line bg-surface-muted;
+  }
+}

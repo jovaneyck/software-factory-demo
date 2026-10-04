@@ -1,21 +1,11 @@
 import { Link } from 'react-router-dom';
+import { Card } from './ui';
+import { DAYS, dayLabel } from './days';
 
 interface Training {
   id: string;
   name: string;
 }
-
-type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-
-const DAYS: DayOfWeek[] = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-];
 
 interface TrainingPlanScheduleProps {
   schedule: Record<string, string[]>;
@@ -29,28 +19,31 @@ function TrainingPlanSchedule({ schedule, trainings }: TrainingPlanScheduleProps
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-6">
-      <div className="grid grid-cols-7 gap-2">
-        {DAYS.map((day) => (
-          <div key={day} className="flex flex-col gap-2">
-            <div className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-medium text-center">
-              {day.charAt(0).toUpperCase() + day.slice(1)}
-            </div>
-            <div className="flex flex-col gap-1">
-              {schedule[day]?.map((trainingId) => (
-                <Link
-                  key={trainingId}
-                  to={`/trainings/${trainingId}`}
-                  className="text-blue-600 hover:text-blue-700 text-sm transition-colors"
-                >
-                  {getTrainingName(trainingId)}
-                </Link>
-              ))}
+    <Card padding="none" className="divide-y divide-line overflow-hidden">
+      {DAYS.map((day) => {
+        const dayTrainings = schedule[day] ?? [];
+        return (
+          <div key={day} className="flex items-center gap-4 px-5 py-3.5">
+            <span className="w-24 shrink-0 text-sm font-semibold text-ink">{dayLabel(day)}</span>
+            <div className="flex min-h-8 flex-1 flex-wrap items-center gap-2">
+              {dayTrainings.length === 0 ? (
+                <span className="text-sm text-ink-subtle">Rest day</span>
+              ) : (
+                dayTrainings.map((trainingId) => (
+                  <Link
+                    key={trainingId}
+                    to={`/trainings/${trainingId}`}
+                    className="inline-flex h-8 items-center rounded-full bg-brand-50 px-3 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-100"
+                  >
+                    {getTrainingName(trainingId)}
+                  </Link>
+                ))
+              )}
             </div>
           </div>
-        ))}
-      </div>
-    </div>
+        );
+      })}
+    </Card>
   );
 }
 
