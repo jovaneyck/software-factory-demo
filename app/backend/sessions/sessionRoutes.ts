@@ -3,13 +3,16 @@ import crypto from 'crypto';
 import type { DogRepository } from '../dogs/DogRepository.js';
 import type { SessionRepository } from './SessionRepository.js';
 import type { SessionListingService } from './SessionListingService.js';
+import type { TrainingRepository } from '../trainings/TrainingRepository.js';
 import type { Session } from '../shared/types.js';
 import { validateUuid } from '../shared/validateUuid.js';
+import { sessionsFilename, sessionsToCsv, type CsvSession } from './sessionCsv.js';
 
 export function sessionRoutes(
   dogs: DogRepository,
   sessions: SessionRepository,
   service: SessionListingService,
+  trainings: TrainingRepository,
 ): Router {
   const router = Router();
   router.param('id', validateUuid);
@@ -64,6 +67,34 @@ export function sessionRoutes(
 
     sessions.save(session as unknown as Session);
     res.status(201).json(session);
+  });
+
+  // All-time CSV export of a dog's logged sessions (completed/skipped).
+  // Registered before the `:id` route so "export.csv" is not parsed as a UUID.
+  router.get('/dogs/:dogId/sessions/export.csv', (req, res) => {
+    const { dogId } = req.params;
+    const dog = dogs.getById(dogId);
+    if (!dog) return res.status(404).json({ error: 'Dog not found' });
+
+    const result = service.list(
+      dogId,
+      new Date('2000-01-01T00:00:00'),
+      new Date('2099-12-31T00:00:00'),
+    );
+    if ('error' in result) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    const logged = result.sessions.filter(
+      (session) => session.status === 'completed' || session.status === 'skipped',
+    );
+    const trainingNames = new Map(
+      trainings.getAll().map((training) => [training.id, training.name]),
+    );
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${sessionsFilename(dog.name)}"`);
+    res.send(sessionsToCsv(logged as unknown as CsvSession[], trainingNames));
   });
 
   router.get('/dogs/:dogId/sessions/:id', (req, res) => {

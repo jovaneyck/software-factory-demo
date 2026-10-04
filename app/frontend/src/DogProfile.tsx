@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { CalendarDays, SearchX } from 'lucide-react';
+import { CalendarDays, Download, SearchX } from 'lucide-react';
 import ProgressView from './ProgressView';
 import {
   BackLink,
   Button,
   ButtonLink,
+  buttonStyles,
   Card,
   EmptyState,
   ListItemIcon,
@@ -175,7 +176,19 @@ function DogProfile() {
       </Section>
 
       {assignedPlan && (
-        <Section title="Sessions">
+        <Section
+          title="Sessions"
+          action={
+            <a
+              href={`/api/dogs/${id}/sessions/export.csv`}
+              download
+              className={buttonStyles({ variant: 'secondary', size: 'sm' })}
+            >
+              <Download />
+              Export CSV
+            </a>
+          }
+        >
           <ProgressView dogId={id!} trainings={trainings} />
         </Section>
       )}
