@@ -11,15 +11,15 @@ import { Plus } from 'lucide-react'; // icons: lucide-react only
 ## Rules
 
 1. **Tokens only.** Use semantic colors from `tailwind.config.js`; raw palettes (`bg-blue-600`, `text-slate-500`, `bg-white`, …) fail `npm run lint`.
-   | Token                                               | Use for                                            |
-   | --------------------------------------------------- | -------------------------------------------------- |
-   | `brand-50…900`                                      | primary actions, selection, links, accents         |
-   | `ink` / `ink-muted` / `ink-subtle` / `ink-inverted` | primary / secondary / tertiary text, text on brand |
-   | `canvas`                                            | page background (set globally)                     |
-   | `surface` / `surface-muted` / `surface-sunken`      | cards / hover + tracks / placeholders              |
-   | `line` / `line-strong`                              | dividers / control borders                         |
-   | `success` `warning` `danger` (+ `-soft`)            | status foreground (+ tinted background)            |
-   Shadows: `shadow-card`, `shadow-raised`, `shadow-overlay`, `shadow-brand`. Motion: `animate-fade-in`, `animate-rise-in`, `animate-pop-in`.
+   | Token                                                                                                                                      | Use for                                            |
+   | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+   | `brand-50…900`                                                                                                                             | primary actions, selection, links, accents         |
+   | `ink` / `ink-muted` / `ink-subtle` / `ink-inverted`                                                                                        | primary / secondary / tertiary text, text on brand |
+   | `canvas`                                                                                                                                   | page background (set globally)                     |
+   | `surface` / `surface-muted` / `surface-sunken`                                                                                             | cards / hover + tracks / placeholders              |
+   | `line` / `line-strong`                                                                                                                     | dividers / control borders                         |
+   | `success` `warning` `danger` (+ `-soft`)                                                                                                   | status foreground (+ tinted background)            |
+   | Shadows: `shadow-card`, `shadow-raised`, `shadow-overlay`, `shadow-brand`. Motion: `animate-fade-in`, `animate-rise-in`, `animate-pop-in`. |
 2. **Page skeleton.** Every route renders `<div className="space-y-6">` → `PageHeader` → content (`Card`, `ListGroup`, `Section`). The app shell adds max-width, padding, nav and page-enter animation.
 3. **Every async view has three states:** `LoadingState`, `ErrorState`, `EmptyState` (with an icon and a CTA).
 4. **Icons** come from `lucide-react`, sized by the parent primitive. Decorative icons get `aria-hidden="true"`; icon-only controls use `IconButton`/`IconButtonLink` (they require `label`).
@@ -29,30 +29,30 @@ import { Plus } from 'lucide-react'; // icons: lucide-react only
 
 ## Catalog
 
-| Primitive                                    | Purpose                                               | Key props                                                                               |
-| -------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `PageHeader`                                 | `h1` title, description, back link, actions           | `title`, `description`, `back={{to,label}}`, `actions`                                  |
-| `BackLink`                                   | chevron + text link                                   | `to`                                                                                    |
-| `Section`                                    | uppercase `h2` label above a block                    | `title`, `action`                                                                       |
-| `Card`                                       | white rounded surface                                 | `padding: none·sm·md·lg`                                                                |
-| `ListGroup` + `ListItem`                     | grouped rows with dividers and `›` chevron            | `to` _or_ `onClick`, `title`, `description`, `leading`, `trailing`                      |
-| `ListItemIcon`                               | tinted square icon for `ListItem.leading`             | children: lucide icon                                                                   |
-| `Avatar`                                     | round photo, initial fallback (not an `img`)          | `name`, `src`, `size: sm·md·lg·xl`                                                      |
-| `Button`                                     | action                                                | `variant: primary·secondary·ghost·danger`, `size: sm·md·lg`, `block`, `icon`, `loading` |
-| `ButtonLink`                                 | router link styled as button                          | same as `Button` + `to`                                                                 |
-| `IconButton` / `IconButtonLink`              | icon-only control                                     | `label` (required), `icon`, `variant`, `size`                                           |
-| `buttonStyles()`                             | button classes for other elements                     | `{ variant, size, block, className }`                                                   |
-| `Badge`                                      | status/score pill                                     | `tone: neutral·brand·success·warning·danger`                                            |
-| `Field`                                      | label + control + hint/error                          | `label`, `htmlFor`, `hint`, `error`                                                     |
-| `Input` / `Textarea` / `Select`              | form controls                                         | native props                                                                            |
-| `ImagePicker`                                | photo drop target with preview                        | `id`, `onFileChange`                                                                    |
-| `ChoiceChip`                                 | checkbox/radio as a pill (native input kept)          | `type: checkbox·radio`, native input props                                              |
-| `SegmentedControl`                           | exclusive toggle group (`aria-pressed`)               | `label`, `options`, `value`, `onChange`                                                 |
-| `Modal`                                      | centered dialog; Escape/backdrop/close button dismiss | `open`, `onClose`, `title`, `description`, `footer`                                     |
-| `Markdown` / `MarkdownEditor`                | sanitized render / editor for user markdown           | `source` / `value`, `onChange`                                                          |
-| `EmptyState` / `ErrorState` / `LoadingState` | async states                                          | `icon`, `title`, `description`, `action` / `message` / `label`                          |
-| `Spinner`                                    | inline progress                                       | `className`                                                                             |
-| `cn()`                                       | class merge helper                                    | —                                                                                       |
+| Primitive                                                                                             | Purpose                                               | Key props                                                                               |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `PageHeader`                                                                                          | `h1` title, description, back link, actions           | `title`, `description`, `back={{to,label}}`, `actions`                                  |
+| `BackLink`                                                                                            | chevron + text link                                   | `to`                                                                                    |
+| `Section`                                                                                             | uppercase `h2` label above a block                    | `title`, `action`                                                                       |
+| `Card`                                                                                                | white rounded surface                                 | `padding: none·sm·md·lg`                                                                |
+| `ListGroup` + `ListItem`                                                                              | grouped rows with dividers and `›` chevron            | `to` _or_ `onClick`, `title`, `description`, `leading`, `trailing`                      |
+| `ListItemIcon`                                                                                        | tinted square icon for `ListItem.leading`             | children: lucide icon                                                                   |
+| `Avatar`                                                                                              | round photo, initial fallback (not an `img`)          | `name`, `src`, `size: sm·md·lg·xl`                                                      |
+| `Button`                                                                                              | action                                                | `variant: primary·secondary·ghost·danger`, `size: sm·md·lg`, `block`, `icon`, `loading` |
+| `ButtonLink`                                                                                          | router link styled as button                          | same as `Button` + `to`                                                                 |
+| `IconButton` / `IconButtonLink`                                                                       | icon-only control                                     | `label` (required), `icon`, `variant`, `size`                                           |
+| `buttonStyles()`                                                                                      | button classes for other elements                     | `{ variant, size, block, className }`                                                   |
+| `Badge`                                                                                               | status/score pill                                     | `tone: neutral·brand·success·warning·danger`                                            |
+| `Field`                                                                                               | label + control + hint/error                          | `label`, `htmlFor`, `hint`, `error`                                                     |
+| `Input` / `Textarea` / `Select`                                                                       | form controls                                         | native props                                                                            |
+| `ImagePicker`                                                                                         | photo drop target with preview                        | `id`, `onFileChange`                                                                    |
+| `ChoiceChip`                                                                                          | checkbox/radio as a pill (native input kept)          | `type: checkbox·radio`, native input props                                              |
+| `SegmentedControl`                                                                                    | exclusive toggle group (`aria-pressed`)               | `label`, `options`, `value`, `onChange`                                                 |
+| `Modal`                                                                                               | centered dialog; Escape/backdrop/close button dismiss | `open`, `onClose`, `title`, `description`, `footer`                                     |
+| `Markdown` / `MarkdownEditor` (import from `./ui/Markdown`, not the barrel — keeps it in lazy chunks) | sanitized render / editor for user markdown           | `source` / `value`, `onChange`                                                          |
+| `EmptyState` / `ErrorState` / `LoadingState`                                                          | async states                                          | `icon`, `title`, `description`, `action` / `message` / `label`                          |
+| `Spinner`                                                                                             | inline progress                                       | `className`                                                                             |
+| `cn()`                                                                                                | class merge helper                                    | —                                                                                       |
 
 ## Recipes
 

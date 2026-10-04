@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Field, Input, MarkdownEditor, PageHeader } from './ui';
+import { Button, Card, Field, Input, PageHeader } from './ui';
+import { MarkdownEditor } from './ui/Markdown';
 
 function TrainingForm() {
   const navigate = useNavigate();

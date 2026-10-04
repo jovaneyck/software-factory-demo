@@ -10,7 +10,8 @@ export { ChoiceChip, SegmentedControl } from './Choice';
 export { Field, ImagePicker, Input, Select, Textarea } from './Field';
 export { IconButton, IconButtonLink } from './IconButton';
 export { ListGroup, ListItem, ListItemIcon } from './List';
-export { Markdown, MarkdownEditor } from './Markdown';
+// Markdown/MarkdownEditor are intentionally not re-exported: import from './ui/Markdown' so the heavy
+// markdown stack stays in lazily loaded route chunks.
 export { Modal } from './Modal';
 export { BackLink, PageHeader } from './PageHeader';
 export { Spinner } from './Spinner';

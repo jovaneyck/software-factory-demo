@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
-import MDEditor from '@uiw/react-md-editor';
+// nohighlight: skips Prism's ~300 language grammars (~1.2 MB); training notes don't need code highlighting.
+import MDEditor from '@uiw/react-md-editor/nohighlight';
 import rehypeSanitize from 'rehype-sanitize';
 
 const components = {

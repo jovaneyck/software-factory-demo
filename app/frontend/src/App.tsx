@@ -1,21 +1,24 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { CalendarDays, Dog, Target, TrendingUp } from 'lucide-react';
 import logo from './assets/logo.png';
-import { cn } from './ui';
+import { cn, LoadingState } from './ui';
 import DogList from './DogList';
 import DogForm from './DogForm';
 import DogProfile from './DogProfile';
 import TrainingList from './TrainingList';
-import TrainingForm from './TrainingForm';
-import TrainingDetail from './TrainingDetail';
-import TrainingEdit from './TrainingEdit';
 import PlanList from './PlanList';
 import PlanForm from './PlanForm';
 import PlanDetail from './PlanDetail';
 import PlanEdit from './PlanEdit';
 import Progress from './Progress';
-import ProgressReport from './ProgressReport';
-import DesignSystem from './DesignSystem';
+
+// Split out routes that pull in heavy deps: markdown (training pages) and d3 (progress report).
+const TrainingForm = lazy(() => import('./TrainingForm'));
+const TrainingDetail = lazy(() => import('./TrainingDetail'));
+const TrainingEdit = lazy(() => import('./TrainingEdit'));
+const ProgressReport = lazy(() => import('./ProgressReport'));
+const DesignSystem = lazy(() => import('./DesignSystem'));
 
 const TABS = [
   { to: '/', label: 'Dogs', prefix: '/', Icon: Dog },
@@ -93,22 +96,24 @@ function Shell() {
 
       <main className="mx-auto max-w-3xl px-4 pb-32 pt-6 sm:px-6 sm:pt-8 md:pb-16">
         <div key={pathname} className="animate-rise-in">
-          <Routes>
-            <Route path="/" element={<DogList />} />
-            <Route path="/dogs/new" element={<DogForm />} />
-            <Route path="/dogs/:id" element={<DogProfile />} />
-            <Route path="/dogs/:id/progress" element={<Progress />} />
-            <Route path="/trainings" element={<TrainingList />} />
-            <Route path="/trainings/new" element={<TrainingForm />} />
-            <Route path="/trainings/:id" element={<TrainingDetail />} />
-            <Route path="/trainings/:id/edit" element={<TrainingEdit />} />
-            <Route path="/plans" element={<PlanList />} />
-            <Route path="/plans/new" element={<PlanForm />} />
-            <Route path="/plans/:id" element={<PlanDetail />} />
-            <Route path="/plans/:id/edit" element={<PlanEdit />} />
-            <Route path="/progress" element={<ProgressReport />} />
-            <Route path="/design-system" element={<DesignSystem />} />
-          </Routes>
+          <Suspense fallback={<LoadingState />}>
+            <Routes>
+              <Route path="/" element={<DogList />} />
+              <Route path="/dogs/new" element={<DogForm />} />
+              <Route path="/dogs/:id" element={<DogProfile />} />
+              <Route path="/dogs/:id/progress" element={<Progress />} />
+              <Route path="/trainings" element={<TrainingList />} />
+              <Route path="/trainings/new" element={<TrainingForm />} />
+              <Route path="/trainings/:id" element={<TrainingDetail />} />
+              <Route path="/trainings/:id/edit" element={<TrainingEdit />} />
+              <Route path="/plans" element={<PlanList />} />
+              <Route path="/plans/new" element={<PlanForm />} />
+              <Route path="/plans/:id" element={<PlanDetail />} />
+              <Route path="/plans/:id/edit" element={<PlanEdit />} />
+              <Route path="/progress" element={<ProgressReport />} />
+              <Route path="/design-system" element={<DesignSystem />} />
+            </Routes>
+          </Suspense>
         </div>
       </main>
     </div>

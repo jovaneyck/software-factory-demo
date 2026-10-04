@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Lightbulb, ListOrdered, Pencil, SearchX } from 'lucide-react';
-import { BackLink, ButtonLink, Card, EmptyState, LoadingState, Markdown, PageHeader } from './ui';
+import { BackLink, ButtonLink, Card, EmptyState, LoadingState, PageHeader } from './ui';
+import { Markdown } from './ui/Markdown';
 
 interface Training {
   id: string;

@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Card, Field, Input, LoadingState, MarkdownEditor, PageHeader } from './ui';
+import { Button, Card, Field, Input, LoadingState, PageHeader } from './ui';
+import { MarkdownEditor } from './ui/Markdown';
 
 interface Training {
   id: string;
